@@ -1,0 +1,31 @@
+# @package _global_
+
+hydra:
+  run:
+    dir: .
+  sweep:
+    dir: .
+    subdir: .
+  job_logging:
+    root:
+      level: INFO
+
+# Dataset arguments.
+test_input_data_path: "data/test_conversational_implicatures.csv"
+dev_input_data_path: "data/dev_conversational_implicatures.csv"
+
+# Prompt arguments
+prompt_file: "data/prompt_templates.txt"
+
+# Misc
+logging_frequency: 100
+device: "cpu"
+results_folder: "results"
+max_num_evaluations: -1
+
+# Model arguments
+model_ids: "cohere-medium"
+k_shot: 0
+prompt_class: "ExamplePrompt"
+task: "ranking"
+seed: 0

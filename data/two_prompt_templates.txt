@@ -1,0 +1,3 @@
+example_template_text;phrase_to_split_on_for_bias_prediction;phrase_to_put_mask;example_instruction_text;prompt_instruction_text
+"question: %s\nresponse: %s\nmeaning: %s";"response: ";"meaning: %s";"Consider the following two texts:";"The following are examples of the task:"
+"Esther asked "%s" and Juan responded "%s", which means %s";"responded ";"means %s";"Consider the following two texts:";"The following are examples of the task:"

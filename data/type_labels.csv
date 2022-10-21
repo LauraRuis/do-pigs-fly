@@ -1,0 +1,257 @@
+Utterance,Response,Implicature,Type,Factual knowledge
+"They were fine?
+",All is good.,Yes,Generalised,No
+Did he ever fall back on a run?,"All the time, sir.",Yes.,Generalised,Np
+Didn't he work for the Church?,Almost exclusively.,Yes.,Generalised,No
+Are you sending them an invitation?,Certainly.,Yes.,Generalised,No
+Isn't this great?,delightful,Yes.,Generalised,No
+Are you giving me a ride?,Don't need to.,No.,Generalised,No
+You think it's so easy?,Easy enough for you.,Yes.,Generalised,Mp
+He still dead?,Far as I know.,Yes.,Generalised,No
+"You're going to see your little
+           brother?
+",First thing.,Yes.,Generalised,No
+Do you feel comfortable here?,From day one.,Yes.,Generalised,No
+Special occasion?,I don't know. I guess so,Yes.,Generalised,No
+Can he feel it if I pet him?,I guess.,Yes.,Generalised,No
+I beg your pardon. Are you ill?,I hope not.,No.,Generalised,No
+Are you ready to get back to work?,I think so,Yes.,Generalised,No
+"Do you know him?
+",I wish I did.,No.,Generalised,No
+Am I right?,I would think so.,Yes.,Generalised,No
+"in your opinion, was Private Santiago a good marine?",I'd say he was about average.,No.,Generalised,No
+Seen the late edition?,I'm afraid so.,"Yes.
+",Generalised,No
+"Good evening, George. Is anything the matter?",I'm afraid there is.,Yes.,Generalised,No
+Would you like to go to the show?,I'm all for it.,Yes.,Generalised,No
+Are you tired?,I’m so tired I could sleep for a million years.,Yes.,Generalised,No
+Have you seen this movie before?,I’ve seen that movie a thousand times.,Yes. I have seen that movie many times.,Generalised,No
+And you say that came from Lisca Bianca?,It couldn't have come from anywhere else.,Yes.,Generalised,No
+Does it look good?,It is divine.,Yes.,Generalised,No
+Do you love eating that?,It is one of my favourite meals.,Yes.,Generalised,No
+Do you suppose the Ivory Tower is still standing?,"Let's hope so, Atreyu. Let's hope so.",Yes.,Generalised,No
+You... live here?,"Long time. Long, long time.",Yes.,Generalised,No
+Can you open this?,No way.,No.,Generalised,No
+You mean you don't know who she is?,No way.,Yes.,Generalised,No
+They poisoned the rag?,Not according to them.,No.,Generalised,No
+Are you a shiftless dreamer?,Not anymore.,No.,Generalised,No
+Am I nuts?,Not completely.,Yes.,Generalised,No
+"This anything I should
+               know about?",Nothing out of the routine.,No.,Generalised,No
+Are you all right?,Perfect! Never been better.,Yes.,Generalised,No
+You actually know all these people?,Some.,No.,Generalised,No
+Isn't that why we moved here?,Something like that. But then we had the accident.,Yes.,Generalised,No
+Aren't you scared?,Sometimes.,Yes.,Generalised,No
+"Will you have tea, Mister Welles?",Thank you.,Yes.,Generalised,No
+That is how it's going to be?,That is how it must be.,Yes.,Generalised,No
+I noticed that you have not installed that program on your computer. Shall I sit with you with the instruction manual?,That would be great. You need a phD to undertand it.,Yes. I am not able to understand the instruction.,Generalised,No
+Beautiful isn't it?,They're disgusting.,No.,Generalised,No
+Have you started writing your paper on computer programming languages?,"To be true, I had been putting it off.",No. I have not done any work yet.,Generalised,Yes
+"They grow up so fast, don't they?",Too fast.,Yes.,Generalised,No
+You were a smoker?,Two packs a day.,Yes.,Generalised,No
+Do you sell calculators?,We are all sold out. We wont probably have any more in for a few weeks.,Yes. But we dont have any calculators to sell now.,Generalised,No
+Are you guys all right in there?,We're fine.,Yes.,Generalised,No
+Is this really the best time to talk?,"Well, so far…",Yes.,Generalised,No
+Did you order the code red?,You're goddamn right,Yes.,Generalised,No
+"They'll be safe, won't they?
+",As safe as we can make 'em.,"Yes.
+",Hyperbole,No
+Was the hall decorated well?,It was decorated with a million flowers.,Yes.,Hyperbole,No
+Is this place hot?,As hot as hell,Yes.,Idiom,Yes
+"Can you help me with this problem? I've been beating my brains out with it, but I just can't solve it.",Beats me.,No. I have no idea.,Idiom,Yes
+It seems Cathy is not happy at all with her new room mate. Did you ask her why?,Believe me. I tried to find out. But I simply could not pin it down.,Yes but Cathy did not give specific reasons for her feelings.,Idiom,Yes
+Was Benny emotional?,Benny always wears his heart on his sleeve,Yes.,Idiom,Yes
+Are we clear?,Crystal.,Yes.,Idiom,Yes
+Exactly the way it was?,Down to the last slime-covered toadstool.,Yes.,Idiom,Yes
+Can I trust George?,He is as clean as a whistle.,Yes.,Idiom,Yes
+Is the professor friendly?,He is as cool as a cucumber.,Yes.,Idiom,Yes
+Do you think he did the theft?,He is as innocent as a lamb,No.,Idiom,Yes
+Is he a fast runner?,He runs like the wind!,Yes.,Idiom,Yes
+Would he fire me?,He's all bark and no bite.,No.,Idiom,Yes
+Is Marci grumpy?,he's as gentle as a lamb,No.,Idiom,Yes
+Is he an experienced salesman?,He's just wet behind the ears.,No.,Idiom,Yes
+Could you finish the report on time?,I bit off more than I could chew,No.,Idiom,Yes
+Could you gets tickets for the concert?,I completely missed the boat.,No.,Idiom,Yes
+Did you like the show?,I got a bang out of it.,Yes.,Idiom,Yes
+Are you working hard?,I have been burning the midnight oil.,Yes.,Idiom,Yes
+Is your boss giving you extra work?,I have to draw the line somewhere!,Yes.,Idiom,Yes
+Are you tired?,I've been burning the candle at both ends all week.,Yes.,Idiom,No
+I feel horrible. Debbie was furious that I lost her notes. Do you think I should apologize her again?,If I were you I would cool off for some days before I talk to her again.,No.,Idiom,No
+Is the dress perfect?,it fits like a glove.,Yes.,Idiom,Yes
+Should I go to their house?,It is a den of iniquity.,No. It is not a pleasant house.,Idiom,Yes
+Does it rain frequently?,It only rains here once in a blue moon.,No.,Idiom,Yes
+Have they reached an agreement?,It seems they didn’t have any common ground to stand on.,No.,Idiom,Yes
+Should we keep promoting our item?,It sells like hot cakes!,Yes. It sells fast.,Idiom,Yes
+"Professor, would it surprise you to find those clothes suit you?",It would surprise the hell out of me.,Yes.,Idiom,Yes
+Does she know how to play a piano?,Now it is like second nature to her.,Yes. very well.,Idiom,Yes
+Is she healthy?,She is all skin and bones.,No.,Idiom,Yes
+Does professor Ford always come to class?,She is ice cold.,Yes.,Idiom,Yes
+Was she angry?,She was so mad she was spitting bullets.,Yes.,Idiom,Yes
+Does he love his little girl?,She's the apple of his eye.,Yes.,Idiom,Yes
+Is she tall?,She’s as tall as a beanpole.,Yes.,Idiom,Yes
+Did they get any evidence?,The house is as clean as a whistle.,No.,Idiom,Yes
+Do they fight?,They fight like cats and dogs.,Yes.,Idiom,Yes
+Did you wear a jeans for the meeting?,"They wore jeans, which made me stand out like a sore thumb.",No.,Idiom,Yes
+Was he happy?,was on cloud nine.,Yes.,Idiom,No
+Do you have any ketchup left?,We are swimming in it.,Yes. A lot.,Idiom,Yes
+Have you found another school for the children?,We're still shopping around.,Yes.,Idiom,Yes
+Did you get a mail about this party?,Word of mouth.,No.,Idiom,Yes
+Is it too costly?,You are breaking the bank.,Yes.,Idiom,Yes
+Did I make a good bet?,You backed the wrong horse.,No. I dont think so.,Idiom,Yes
+Are you guys going to win?,You can bet on it.,Yes.,Idiom,Yes
+Is th job going to be easy?,You have big shoes to fill.,No.,Idiom,Yes
+Did I do it well?,You were as brave as a lion.,Yes.,Idiom,Yes
+"and then Batman showed up?
+"," He saved all our lives, Jim.",Yes.,Particularised,No
+"What, scared of heights?
+"," I dunno, man. After what happened to
+               Johnny Gobs",Yes.,Particularised,Yes
+Got any more of those?," Nothing I'm at liberty to reveal
+               here.",Yes.,Particularised,No
+Do you think you can give me a ride home?,A friend in need is a friend indeed.,Yes.,Particularised,No
+"Do you know, how long is Uncle Arthur staying with us?",Ask your father.,No.,Particularised,No
+Remember when we use to have fun?,before you go boring.,Yes.,Particularised,No
+You want me to come out there and play private eye?,Consider it.,Yes.,Particularised,No
+Does it mean that I'm crazy?,"Crazy isn't a psychiatric diagnosis, Fred.",No.,Particularised,No
+Do I have to attend this interview?,Do you want to be a success in this world?,Yes.,Particularised,Yes
+You're sure I'm not the Chosen One?,"Emmet, your mother is the most powerful being in the universe.",No.,Particularised,No
+Do you feel better?,Frightened.,No.,Particularised,No
+My client is taking me to a really fancy restaurant tonight. So I am wearing this new cologne. I got a sample of it from a magazine. Can you smell it?,From across the room. But it is not exactly subtle. Is it?,Yes. The cologne has a strong smell.,Particularised,No
+Would you like me to take you home?,God. You would.,Yes.,Particularised,No
+You're really gonna pop the question?,"Got the ring. Got the airline tickets. Soon as they break that piñata, we'll grab a cab - and it's off to the land of palm trees and coconuts.",Yes.,Particularised,No
+"So, How was the drama club's production last night? Did I miss anything good?",Hardly. I was looking at my watch all the time.,No. The drama was not good.,Particularised,No
+Have you ever dealt with anything like this?,"Have you met my father?
+",Yes.,Particularised,No
+Do you think father made all his money?,He inherited it.,No.,Particularised,No
+Is he a good friend?,He's a pain in the neck.,No.,Particularised,No
+Is he currently employed?,"He's... he's going through a bad patch
+               at the moment. But it's not his fault.",No.,Particularised,No
+Did she smile at you?,Her smile was a mile wide.,Yes.,Particularised,No
+"would you help me behind this week, to go over these questions again?",How about tomorrow then?,yes. I am free to help you with these questions tomorrow,Particularised,No
+you got anything to sell?,I can get it.,Yes.,Particularised,No
+Do you have these journals?,I can have them flown here from Geneva in an hour.,No.,Particularised,No
+Did you go there?,I didn't need to --,No.,Particularised,No
+Were you hiding from me?,I didn't want to scare you.,Yes.,Particularised,No
+"Fred, is there something you want to tell me about the lodge meeting?",I don't wanna think about it.,No.,Particularised,No
+Couldn't I have some more now?,I don't want to ruin you appetite.,No.,Particularised,No
+Are you still waiting for Bob?,I don’t know why I bother. The store wll be closed by the time we get there.,Yes.,Particularised,No
+"I'm the Chosen One, remember?",I guess that makes two of us.,No.,Particularised,No
+Have you been avoiding me? Barely seen you since I got home.,I have been busy.,No.,Particularised,No
+I am going to conduct my psychology experiment this Saturday. I would be having a handful. Would you help by writing the names of the participants.,I have got some work on my own.,No. I have some work on my own.,Particularised,No
+Are you alright?,"I just, I wish I could've done something.",No.,Particularised,No
+"You okay, Ernst?",I must've gagged. Did I pass out?,No. I am not okay.,Particularised,No
+You're sure this time?,I need a map.,No.,Particularised,No
+Have you ever been in a courtroom?,I once had my drivers license suspended.,Yes.,Particularised,No
+And you think you can got him to just say it?,I think he wants to say it,Yes.,Particularised,No
+Did they agree to fund?,I think I've lucked out !,Yes.,Particularised,No
+Do you think we were right?,I think you'd lose.,No.,Particularised,No
+Was that a long lecture?,I thought that lecture would never end.,Yes.,Particularised,No
+You want answers?!,I want the truth.,Yes.,Particularised,No
+Did you like it?,I was glad when it was over.,No.,Particularised,No
+"Have you seen my watch?
+",I will take a look for it around my house.,No.,Particularised,No
+Do you know where he is?,I'll find him.,No.,Particularised,No
+are you following me?,I'll tell you why.,Yes.,Particularised,No
+Are you married?,I'm divorced.,No.,Particularised,No
+I'm the love of your life?,I'm still angry at you.,No.,Particularised,No
+don't you stay for a nightcap?,I've gotta get up early,No.,Particularised,No
+Are you hungry?,"I’m dying of starvation, when’s dinner?",Yes.,Particularised,No
+Can you lend me hundred dollars?,Is this supposed to be some kind of a joke?,No.,Particularised,No
+Wonderful. You won the scolarship. Can you believe it?,It almost too good to be true.,No. I am surprised that I got the scholarship.,Particularised,No
+"Now, not another word or I shall have to summon the policeman. Is that clear?",It did happen! I saw it!,no. you can’t keep me quiet.,Particularised,No
+Do you believe they have a defense?,"It doesn't matter what I believe, it only matters what I can prove.",Yes.,Particularised,No
+I really like to learn how to play chess. But it is a little bit complicated. I think it will take a really long time to learn.,It is a bit complicated. But we could go over the basics this afternoon if you want.,No. I shall help you to learn to play chess.,Particularised,No
+You don't mind taking care of that dog?,It is a labor of love.,No.,Particularised,No
+Is that book about lullabies?,It is about symphonies.,No.,Particularised,No
+Do you want to go to the lecture tonight in the science auditorium. It is done by a guide who lived in Antartica for a decade.,"It is, no kidding. I am writing a report on Antartica in my geography class. Maybe I would get some good information to add to it.",Yes. I want to attend the lecture.,Particularised,No
+Are you sure you are not Don Johnson?,It must be a case of mistaken identity.,No.,Particularised,No
+Are you sad about losing your job?,It turned out to be a blessing in disguise.,No.,Particularised,No
+Do you think hysteria could do that?,It's being doing it for centuries.,Yes.,Particularised,No
+Can I call you in a little while?,It's four in the morning... I'm going to go to sleep.,No.,Particularised,No
+Do you realize how perfectly unmatched we are?,It's made up about one thing though.,Yes.,Particularised,No
+Does she always cry like that?,It's only because she's teething.,No.,Particularised,No
+Will these go away? These gas gauges?,It's probably a functional impairment.,No.,Particularised,No
+"will you mail these letters for me, please?",More letters. Your friends are going to be very happy to hear from you.,yes I will post these letters,Particularised,No
+Are the shops open at night?,New York is the city that never sleeps.,Yes.,Particularised,No
+Am I late?,No time to talk.,Yes.,Particularised,No
+Have you ever been to Corto Maltese?,Not since the shooting started.,Yes.,Particularised,No
+Will you stay if we promise to be good?,"Och! That's a piecrust promise. Easily made, easily broken.",No.,Particularised,No
+Have you tried cashing that refund cheque at the book store?,Oh Gosh Thank you for reminding me.,No. I forgot.,Particularised,No
+Is there anything wrong with her??,"Oh, she's just pretending.",No.,Particularised,No
+"It's horrible, isn't it?","Oh, we're making great progress!",No. It is improving,Particularised,No
+Did you bring your blue and yellow sweater for me to wear to the game today? You know I like to wear school colours at the games.,Oh! I knew I forgot something at home.,No.,Particularised,No
+Are you going to keep your part time job the next semest at the biology laboratory?,One semester as lab assistant is enough.,No. I am tired of the lab assistant job.,Particularised,No
+I cant believe how much similar you both look. Are you related?,People are always assuming that we are related.,No. We are not relatives.,Particularised,No
+Is it true that you mother has cancer?,She has been sick for three months.,Yes.,Particularised,No
+Did you say you were selling the house? Or was that me dreaming?,"Shit, I hope it was you dreaming.",Yes I said I am selling the house.,Particularised,No
+You want to do this to the whole world?,So the whole world will be exactly how I want.,Yes.,Particularised,No
+Have you finished sight-seeing?,Sorry. I should've come to see you first.,Yes.,Particularised,No
+Did you clean your room?! The cleaning woman is coming today!,Then why do I need to clean?,No.,Particularised,No
+Is it really?,These aren't like any treasures I've seen.,Yes.,Particularised,No
+Is it a good product?,They had put a lot of thought into making it.,Yes.,Particularised,No
+Could they compete against online platforms?,They were fighting a losing battle.,No.,Particularised,No
+"They are against you?
+",They... fear me.,No.,Particularised,No
+You only have water to serve?,This is not just water .It is imported mineral water.,yes. I only have water to serve,Particularised,No
+Do you sail?,"Too much work. I'm not really the
+               physical type.
+",No.,Particularised,Yes
+"Getting into trouble a little early today, aren't we Aladdin?",Trouble? You're only in trouble if you get caught,No. we are not getting into trouble,Particularised,No
+You're admitting evidence of a flight that never existed?,"We believe it did, sir.",No.,Particularised,No
+You want to try?,We can ask for nothing better.,Yes.,Particularised,No
+Do you have field hands that help you?,We work the land alone.,No.,Particularised,No
+"Have you found him yet?
+",We're still looking.,No.,Particularised,No
+Is your business profitable?,we’re in the black this year.,Yes.,Particularised,No
+And does Abu have anything else to say?,"Well, uh, he wishes there was something he could do to help.",Yes.,Particularised,No
+"You're not getting cold fins now, are you?","Who, me? It's just, it, err . . . it looks - damp in there.",No.,Particularised,No
+Is there a bus I can get to the station.,You can't rely on it.,Yes. But it does not arrive on time.,Particularised,No
+Is the groom taller than the bride?,He is s tall as a giraffe,Yes.,World knowledge,Yes
+Do you want to come out for a juice?,I am so thirsty that my throat is as dry as a bone.,Yes.,World knowledge,Yes
+Can you see the spot?,It is as bright as a button.,Yes.,World knowledge,Yes
+Is the room warm?,It is as cold as ice.,No.,World knowledge,Yes
+Are you able to carry the box?,It is as light as a feather.,Yes.,World knowledge,Yes
+Is the bangle clean now?,It is as shiny as a new pin,Yes.,World knowledge,Yes
+Did the negotiation go well?,It was as hard as nails.,No.,World knowledge,Yes
+Do you love me?,My love for you is as deep as the ocean.,Yes.,World knowledge,Yes
+Can your granmother hear?,She can hear a pin drop a mile away.,Yes.,World knowledge,Yes
+Does she eat a lot?,She eats like a bird.,No.,World knowledge,No
+Did she put on weight?,She is as thin as a rake.,No.,World knowledge,Yes
+This is large. Will this suit her?,She's as thin as a toothpick.,No.,World knowledge,Yes
+Is it fun to play with Katie?,she's more fun than a barrel of monkeys!,Yes.,World knowledge,Yes
+Is that a big book?,That book is a real doorstopper.,Yes.,World knowledge,Yes
+Was that easy to negotiate?,That is as easy as shooting fish in a barrel.,Yes.,World knowledge,Yes
+Did you fingerprint or anything?,"these guys always wear Gloves.
+",No.,World knowledge,Yes
+Will they break this contract?,This contract is as solid as the ground we stand on.,No.,World knowledge,Yes
+Did you like the show?,"to me, it's like watching grass grow.",No.,World knowledge,Yes
+Is Peter like you?,We're just as different as night and day.,No.,World knowledge,Yes
+Did anyone respond angrily because of the lack of bonuses this year?,"Well, that news went over like a lead balloon.",No.,World knowledge,Yes
+Am I writing fast?,You are slower than a snail.,No.,World knowledge,Yes
+Did I explain it well?,Your explanation is as clear as mud.,No.,World knowledge,Yes
+"Can he play the violin?
+",Can a pig fly?,No.,Rhetorical question,Yes
+Can you make a cake?,Can birds fly?,Yes.,Rhetorical question,Yes
+Can you drive that far?,Can fish swim?,Yes.,Rhetorical question,Yes
+Did she sing well?,"Can you get feathers from a tortoise?
+",No.,Rhetorical question,Yes
+Did she sing well?,"Can you get feathers from a tortoise?
+",No.,Rhetorical question,Yes
+Do you know how to play the violin?,Do cats meow?,Yes.,Rhetorical question,Yes
+Do you think you got an “A” on the test?,Do chickens have lips?,No.,Rhetorical question,Yes
+Would he be able to recite the song?,Do dogs bark?,Yes.,Rhetorical question,Yes
+Does he come to attend the meditation class?,Do pigs fly?,No.,Rhetorical question,Yes
+"Did he pass the exam?
+",Does a monkey build a house?,No.,Rhetorical question,Yes
+" Will he really give us that test?
+",Does the sun come up in the east these days?,Yes.,Rhetorical question,Yes
+Did he finish the painting?,Does the sun rise in the west?,"No.
+",Rhetorical question,Yes
+Did you book the tickets?,Is rain wet?,Yes.,Rhetorical question,Yes
+Do you expect Sheila to be late for the party tonight?,Is the pope Catholic?,Yes.,Rhetorical question,Yes
+" Do you have many relatives?
+",Is the sky blue?,Yes.,Rhetorical question,Yes
+Do you think you will ever work at that company again?,When pigs fly.,No.,Rhetorical question,Yes
+Would you come out with me?,"You didn't think I would say yes to that, did you?",Yes.,Rhetorical question,No
+will you be kind enough to come with me?,As you wish.,yes. I shall come with you.,Generalised,No
+Do you want to go to the lecture tonight in the science auditorium. It is done by a guide who lived in Antartica for a decade.,It is no kidding. I am writing a report on Antartica in my geography class. Maybe I would get some good information to add to it.,Yes. I want to attend the lecture.,Particularised,No

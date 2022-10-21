@@ -1,0 +1,10 @@
+datetime
+omegaconf
+setuptools
+pandas
+numpy
+hydra-core
+cohere
+openai
+matplotlib
+transformers

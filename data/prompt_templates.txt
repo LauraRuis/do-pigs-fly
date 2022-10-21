@@ -1,0 +1,7 @@
+example_template_text;phrase_to_split_on_for_bias_prediction;phrase_to_put_mask;example_instruction_text;prompt_instruction_text
+"question: %s\nresponse: %s\nimplicature: %s";"response: ";"implicature: %s";"Does the following response to the question imply yes or no?";"Each following response to the question implies yes or no:"
+"Esther asked "%s" and Juan responded "%s", which means %s";"responded ";"means %s";"Finish the following text:";"The following are examples of the task:"
+"question: %s\nresponse: %s\nmeaning: %s";"response: ";"meaning: %s";"Is the implied meaning of the following response yes or no:";"Is the implied meaning of the following responses yes or no:"
+"question: %s\nresponse: %s\nintent: %s";"response: ";"intent: %s";"What is the intent of the following response, yes or no?";"What is the intent of the following response, yes or no?"
+"Karen asked "%s" and William responded "%s", which means %s";"responded ";"means %s";"Finish the following text:";"The following are examples of the task:"
+"Bob asked "%s" and Alice responded "%s", which means %s";"responded ";"means %s";"Finish the following text:";"The following are examples of the task:"

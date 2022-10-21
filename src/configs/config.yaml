@@ -1,0 +1,31 @@
+hydra:
+  run:
+    dir: .
+  sweep:
+    dir: .
+    subdir: .
+  job_logging:
+    root:
+      level: INFO
+
+# Dataset arguments.
+test_input_data_path: ???
+dev_input_data_path: ???
+batch_size: 16
+seed: 0
+
+# Prompt arguments
+prompt_file: ???
+
+# Misc
+logging_frequency: 100
+device: "cpu"
+results_folder: "results"
+max_num_evaluations: -1
+skip_until_idx: -1
+
+# Model arguments
+model_ids: "roberta-base"
+task: "ranking"
+k_shot: 0
+prompt_class: "ExamplePrompt"
