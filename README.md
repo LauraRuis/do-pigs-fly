@@ -42,12 +42,10 @@ Other requirements:
 
 ```
 >> python -m pip install -r requirements.txt
->> pip install pre-commit
->> pre-commit install
 ```
 
 Note that to run any evaluations you need to have OpenAI and Cohere's API keys. Add these keys
-to the two files in static `cohere_api_key.txt` and `openai_api_key.txt`. The former just needs
+to the two files in the folder `static` called `cohere_api_key.txt` and `openai_api_key.txt`. The former just needs
 a single line with the key, the latter has the organization key on the first line and the API key on the second.
 
 ## Run evaluations
