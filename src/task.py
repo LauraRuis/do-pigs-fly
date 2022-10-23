@@ -46,16 +46,16 @@ class RankingTask(Task):
         mask_token=None,
     ):
         correct_prompt = prompt_template.prompt(
-            correct_example, prompt_examples, mask_token=None
+            correct_example, False, prompt_examples, mask_token=None
         )
         if mask_token:
             masked_input = prompt_template.prompt(
-                correct_example, prompt_examples, mask_token
+                correct_example, False, prompt_examples, mask_token
             )
         else:
             masked_input = None
         false_prompt = prompt_template.prompt(
-            false_example, prompt_examples, mask_token=None
+            false_example, True, prompt_examples, mask_token=None
         )
         return {
             "correct": correct_prompt,

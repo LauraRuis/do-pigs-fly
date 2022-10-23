@@ -8,3 +8,4 @@ cohere
 openai
 matplotlib
 transformers
+pytest

@@ -8,7 +8,7 @@ For evaluations on public HuggingFace models have a look at <a href="TODO: repo 
 
 <a href="https://lauraruis.github.io/2022/09/29/comm.html" target="_blank">**Blogpost**</a>
 
-<a href="TODO: link to uploaded results" target="_blank">**All results in a big file**</a>
+<a href="https://drive.google.com/file/d/1hWcuUpcNef0OGnbS_1PJmFR-LCoG2_oa/view?usp=sharing" target="_blank">**All results in a big file**</a>
 
 **Research question**: To what extent do large language models understand conversational implicature?
 
@@ -48,6 +48,12 @@ Note that to run any evaluations you need to have OpenAI and Cohere's API keys. 
 to the two files in the folder `static` called `cohere_api_key.txt` and `openai_api_key.txt`. The former just needs
 a single line with the key, the latter has the organization key on the first line and the API key on the second.
 
+Check installation:
+
+```bash
+>> pytest tests/.
+```
+
 ## Run evaluations
 
 ### Main 0-shot and k-shot experiments
@@ -74,6 +80,8 @@ To change this like in the paper, adjust the code in `_wrap_in_template()` in `p
 ## Visualise results
 For this section, unzip `results.zip`. It does not contain all the results in the paper, because those
 are too large for GitHub, but it contains the results for InstructGPT and Cohere's models, and for OPT-175B.
+If you want all results from the paper, find them <a href="https://drive.google.com/file/d/1hWcuUpcNef0OGnbS_1PJmFR-LCoG2_oa/view?usp=sharing" target="_blank">**here on drive**</a>.
+To use that file, download it and place `all_results.json` in the folder `error_analysis`.
 First unzip `results.zip`, then run:
 
 ```bash

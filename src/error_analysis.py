@@ -1560,6 +1560,9 @@ if __name__ == "__main__":
     #         folder = f"results/{model}/{k_shot}-shot"
     #         error_analysis_per_k(folder, "error_analysis")
 
+    # if not os.path.exists("error_analysis"):
+    #     os.mkdir("error_analysis")
+
     # Add the results from the LM-eval-harness to all_results.json
     # lm_eval_folders = ["results/opt evals"]
     # for lm_eval_folder in lm_eval_folders:
