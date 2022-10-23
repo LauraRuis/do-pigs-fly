@@ -1,6 +1,6 @@
 # Large language models are not zero-shot communicators
 This repository concerns the <a href="TODO: paper link" target="_blank">paper</a> "Large language models are not zero-shot communicators". It contains the code for running evaluations with OpenAI's and Cohere's API's.
-For evaluations on public HuggingFace models have a look at <a href="TODO: repo link" target="_blank">this repository</a>.
+For evaluations on public HuggingFace models have a look at <a href="https://github.com/LauraRuis/lm-evaluation-harness" target="_blank">this repository</a>.
 
 <a href="https://huggingface.co/datasets/UCL-DARK/ludwig" target="_blank">**HF Dataset**</a>
 
