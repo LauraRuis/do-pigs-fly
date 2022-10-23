@@ -105,9 +105,7 @@ def get_negative_binary_example(example):
     return false_example
 
 
-def log_all_results(
-    models
-):
+def log_all_results(models):
     for model_d in models:
         logger.info(f"Scores for model card {model_d['model_id']}")
         logger.info("Implicature score:")
@@ -130,22 +128,28 @@ def log_prompt_templates(prompt_templates, k_shot, mask_token=None):
         logger.info("Prompt variation %d:" % i)
         if prompt_template.prompt_instruction_set:
             prompt = prompt_template.prompt(
-                test_example, is_false_example=False, prompt_examples=prompt_examples, mask_token=mask_token
+                test_example,
+                is_false_example=False,
+                prompt_examples=prompt_examples,
+                mask_token=mask_token,
             )
             logger.info("\n" + prompt)
         else:
-            prompt = prompt_template.prompt(test_example, is_false_example=False, mask_token=mask_token)
+            prompt = prompt_template.prompt(
+                test_example, is_false_example=False, mask_token=mask_token
+            )
             logger.info("\n" + prompt)
 
 
 def save_results_to_file(
-        num_prompt_templates,
-        models,
-        all_prediction_results,
-        implicature_data,
-        write_data_to,
-        write_results_to,
-        arguments):
+    num_prompt_templates,
+    models,
+    all_prediction_results,
+    implicature_data,
+    write_data_to,
+    write_results_to,
+    arguments,
+):
     all_results = defaultdict(lambda: defaultdict(lambda: defaultdict()))
     metric_labels = ["implicature_metrics"]
     columns = ["model"]
@@ -192,5 +196,3 @@ def log_config(arguments):
 def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
-
-

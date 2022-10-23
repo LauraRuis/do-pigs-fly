@@ -65,12 +65,14 @@ class RankingTask(Task):
 
     @staticmethod
     def prepare_datapoint(
-            example,
-            prompt_template: Prompt,
-            is_false_example: bool,
-            prompt_examples=None,
+        example,
+        prompt_template: Prompt,
+        is_false_example: bool,
+        prompt_examples=None,
     ):
-        label = prompt_template.prompt(example, is_false_example, prompt_examples, mask_token=None)
+        label = prompt_template.prompt(
+            example, is_false_example, prompt_examples, mask_token=None
+        )
         return label
 
     def prepare_for_task(self, example):
@@ -96,12 +98,20 @@ class RankingTask(Task):
             mask_token,
         )
         correct_model_score = model.get_model_score(
-            [texts_to_score["masked_input"] if objective == "mlm" else texts_to_score["correct"]],
+            [
+                texts_to_score["masked_input"]
+                if objective == "mlm"
+                else texts_to_score["correct"]
+            ],
             [texts_to_score["correct"]],
             objective,
         )
         false_model_score = model.get_model_score(
-            [texts_to_score["masked_input"] if objective == "mlm" else texts_to_score["false"]],
+            [
+                texts_to_score["masked_input"]
+                if objective == "mlm"
+                else texts_to_score["false"]
+            ],
             [texts_to_score["false"]],
             objective,
         )

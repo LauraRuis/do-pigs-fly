@@ -101,7 +101,7 @@ class OpenAIModel(Model):
         "babbage": "babbage",
         "textbabbage001": "text-babbage-001",
         "textcurie001": "text-curie-001",
-        "textada001": "text-ada-001"
+        "textada001": "text-ada-001",
     }
 
     def __init__(self, model_engine: str, rate_limit=False):
@@ -117,16 +117,31 @@ class OpenAIModel(Model):
         if isinstance(input_text, list):
             ppl = []
             for _input_text in input_text:
-                prediction = openai.Completion.create(engine=self._model_id,
-                                                      prompt=_input_text,
-                                                      max_tokens=0,
-                                                      logprobs=1,
-                                                      echo=True)
-                assert prediction.choices[0].logprobs.tokens[-1] in ["yes", "no", " no", " yes",
-                                                                     "one", "two", " one", " two",
-                                                                     "1", "2", " 1", " 2",
-                                                                     "A", "B", " A", " B",],\
-                    "Last token is not one of binary implicature options."
+                prediction = openai.Completion.create(
+                    engine=self._model_id,
+                    prompt=_input_text,
+                    max_tokens=0,
+                    logprobs=1,
+                    echo=True,
+                )
+                assert prediction.choices[0].logprobs.tokens[-1] in [
+                    "yes",
+                    "no",
+                    " no",
+                    " yes",
+                    "one",
+                    "two",
+                    " one",
+                    " two",
+                    "1",
+                    "2",
+                    " 1",
+                    " 2",
+                    "A",
+                    "B",
+                    " A",
+                    " B",
+                ], "Last token is not one of binary implicature options."
                 likelihood = prediction.choices[0].logprobs.token_logprobs[-1]
                 ppl.append(np.exp(-1.0 * likelihood))
                 if self._rate_limit:

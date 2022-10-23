@@ -73,8 +73,8 @@ To change this like in the paper, adjust the code in `_wrap_in_template()` in `p
 
 ## Visualise results
 For this section, unzip `results.zip`. It does not contain all the results in the paper, because those
-are too large for GitHub, but it contains the results for InstructGPT and Cohere's models.
-Then when you run:
+are too large for GitHub, but it contains the results for InstructGPT and Cohere's models, and for OPT-175B.
+First unzip `results.zip`, then run:
 
 ```bash
 >> python -m src.error_analysis
@@ -97,7 +97,3 @@ After running the error analysis, the k-shot plots like the ones in the paper ar
 ### Type label analysis
 After running the error analysis as above, the type labels accuracies are printed
 and the plot is `error_analysis/type_labels_plot.png`
-
-
-## Implementation details
-...

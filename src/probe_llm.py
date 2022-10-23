@@ -12,7 +12,7 @@ from src.helpers import (
     log_config,
     log_prompt_templates,
     log_all_results,
-    set_seed
+    set_seed,
 )
 from src.models import CohereModelWrapper, OpenAIModel
 from src.dataset import ParticularisedImplicatureDataset
@@ -34,9 +34,7 @@ def get_logging(arguments):
 
 def load_datasets(arguments):
     dataset = ParticularisedImplicatureDataset.read_data_csv(
-        arguments.test_input_data_path,
-        arguments.dev_input_data_path,
-        arguments.seed
+        arguments.test_input_data_path, arguments.dev_input_data_path, arguments.seed
     )
     return dataset
 
@@ -106,7 +104,9 @@ def dataloader(
 ):
 
     datapoint_idx = 0
-    for csv_idx, implicature in enumerate(dataset.get_implicature_iterator(k_shot=arguments.k_shot)):
+    for csv_idx, implicature in enumerate(
+        dataset.get_implicature_iterator(k_shot=arguments.k_shot)
+    ):
         # historically iterate this way
         prepared_example = task_handler.prepare_for_task(implicature)
 
@@ -126,9 +126,20 @@ def dataloader(
                 datapoint_idx += 1
 
 
-def save_results(results, old_df, example_result, correct_per_variation, all_results,
-                 implicature_write_lines, prompt_variations, prompt_templates, models, write_data_to,
-                 write_results_to, arguments):
+def save_results(
+    results,
+    old_df,
+    example_result,
+    correct_per_variation,
+    all_results,
+    implicature_write_lines,
+    prompt_variations,
+    prompt_templates,
+    models,
+    write_data_to,
+    write_results_to,
+    arguments,
+):
     old_num_rows = old_df.shape[0]
     df = pd.DataFrame(results)
     df.to_csv("raw.csv")
@@ -185,9 +196,8 @@ def save_results(results, old_df, example_result, correct_per_variation, all_res
         if prompt_idx == len(prompt_templates) - 1:
             # finished all prompt variants
             example_result[model_d["model_id"]]["average_implicature_accuracy"] = (
-                                                                                          correct_per_variation / len(
-                                                                                      prompt_variations)
-                                                                                  ) * 100.0
+                correct_per_variation / len(prompt_variations)
+            ) * 100.0
 
             example_result["original_example"] = row["example"]["example"]
             example_result["prompt_examples"] = row["prompt"]
@@ -205,7 +215,13 @@ def save_results(results, old_df, example_result, correct_per_variation, all_res
         write_results_to,
         arguments,
     )
-    return new_new_df, example_result, correct_per_variation, write_data_to, write_results_to
+    return (
+        new_new_df,
+        example_result,
+        correct_per_variation,
+        write_data_to,
+        write_results_to,
+    )
 
 
 @hydra.main(config_path="configs", config_name="config")
@@ -277,14 +293,12 @@ def main(arguments):
                 )
 
             if (
-                    arguments.skip_until_idx != -1
-                    and max(_csv_idx) < arguments.skip_until_idx
+                arguments.skip_until_idx != -1
+                and max(_csv_idx) < arguments.skip_until_idx
             ):
                 continue
             # Get log probabilities for the damm datapoint
-            _scores = model_d["model"].get_model_score(
-                _label
-            )
+            _scores = model_d["model"].get_model_score(_label)
             batch_results = []
             for batch_idx, score in enumerate(_scores):
                 results.append(
@@ -309,20 +323,24 @@ def main(arguments):
                     }
                     | _info[batch_idx]
                 )
-            df, example_result, correct_per_variation, _, _ = save_results(batch_results, df, example_result,
-                                                                           correct_per_variation,
-                                                                           all_results,
-                                                                           implicature_write_lines, prompt_variations,
-                                                                           prompt_templates, models,
-                                                                           write_data_to=write_data_to,
-                                                                           write_results_to=write_results_to,
-                                                                           arguments=arguments)
+            df, example_result, correct_per_variation, _, _ = save_results(
+                batch_results,
+                df,
+                example_result,
+                correct_per_variation,
+                all_results,
+                implicature_write_lines,
+                prompt_variations,
+                prompt_templates,
+                models,
+                write_data_to=write_data_to,
+                write_results_to=write_results_to,
+                arguments=arguments,
+            )
         # put model back onto cpu
         model_d["model"].to("cpu")
 
-    log_all_results(
-        models
-    )
+    log_all_results(models)
 
     logger.info(f"Wrote data to: {write_data_to}")
     logger.info(f"Wrote results to: {write_results_to}")

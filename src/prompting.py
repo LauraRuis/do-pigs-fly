@@ -8,7 +8,11 @@ from src.helpers import get_negative_binary_example
 
 class Prompt:
     def prompt(
-        self, example: Dict[str, str], is_false_example: bool, prompt_examples=None, mask_token=None
+        self,
+        example: Dict[str, str],
+        is_false_example: bool,
+        prompt_examples=None,
+        mask_token=None,
     ) -> str:
         raise NotImplementedError()
 
@@ -74,7 +78,9 @@ class ExamplePrompt(Prompt):
             " example_template_text(=%s)." % (phrase_to_put_mask, example_template_text)
         )
 
-    def _wrap_in_template(self, example: Dict[str, str], is_false_example: bool, prompt_example: bool):
+    def _wrap_in_template(
+        self, example: Dict[str, str], is_false_example: bool, prompt_example: bool
+    ):
         if not self._contrastive:
             return self._example_template_text % (
                 example["utterance"],
@@ -178,20 +184,32 @@ class ExamplePrompt(Prompt):
             processed_example = processed_example + f" {mask_token}"
         return self._prepare_prompt(processed_example, prompt_examples)
 
-    def prompt(self, example: Dict[str, str], is_false_example: bool, prompt_examples=None, mask_token=None):
+    def prompt(
+        self,
+        example: Dict[str, str],
+        is_false_example: bool,
+        prompt_examples=None,
+        mask_token=None,
+    ):
         if prompt_examples:
             assert self.prompt_instruction_set, (
                 "Cannot add prompt examples with "
                 "self._prompt_instruction_text=%s" % self._prompt_instruction_text
             )
-        processed_example = self._wrap_in_template(example, is_false_example=is_false_example, prompt_example=False)
+        processed_example = self._wrap_in_template(
+            example, is_false_example=is_false_example, prompt_example=False
+        )
         if mask_token:
             processed_example = self._mask_template(
                 example["implicature"], processed_example, mask_token
             )
         if prompt_examples:
             prompt_examples = [
-                self._wrap_in_template(prompt_example, is_false_example=is_false_example, prompt_example=True)
+                self._wrap_in_template(
+                    prompt_example,
+                    is_false_example=is_false_example,
+                    prompt_example=True,
+                )
                 for prompt_example in prompt_examples
             ]
         return self._prepare_prompt(processed_example, prompt_examples)
