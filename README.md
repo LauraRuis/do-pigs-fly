@@ -34,13 +34,13 @@ Developed with Python 3.9.10.
 
 Rust is a dependency for `transformers` library, install compiler with:
 
-```
+```bash
 >> curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 Other requirements:
 
-```
+```bash
 >> python -m pip install -r requirements.txt
 ```
 
