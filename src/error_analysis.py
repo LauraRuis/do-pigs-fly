@@ -1611,11 +1611,11 @@ if __name__ == "__main__":
     #     convert_lm_eval_results(lm_eval_folder, "error_analysis")
 
     file = "error_analysis/all_results.json"
-    # label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
-    # models_to_show = ["InstructGPT", "OPT", "Cohere"]
+    label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
+    models_to_show = ["InstructGPT", "OPT", "Cohere"]
     # Uncomment to show all models in paper if all_results.json downloaded from ...
-    models_to_show = ["InstructGPT-3", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5"]
-    label_order = ["Best human", "Avg. human", "InstructGPT-3", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
+    # models_to_show = ["InstructGPT-3", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5"]
+    # label_order = ["Best human", "Avg. human", "InstructGPT-3", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
     plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
     # plot_all_lines(file)
     # type_label_analysis()
