@@ -9,7 +9,7 @@ import os
 from src.probe_llm import load_datasets
 
 
-MODEL_COLORS = {'InstructGPT': np.array([0.10588235, 0.61960784, 0.46666667, 1.        ]),
+MODEL_COLORS = {'InstructGPT-3': np.array([0.10588235, 0.61960784, 0.46666667, 1.        ]),
                 'GPT-3': np.array([0.61960784, 0.10588235, 0.46666667, 1.        ]),
                 'Davinci-002': np.array([0.85098039, 0.37254902, 0.00784314, 1.        ]),
                 'Cohere': np.array( [0.45882353, 0.43921569, 0.70196078, 1.        ]),
@@ -18,7 +18,7 @@ MODEL_COLORS = {'InstructGPT': np.array([0.10588235, 0.61960784, 0.46666667, 1. 
                 'BLOOM': np.array([0.90196078, 0.67058824, 0.00784314, 1.        ]),
                 "BlenderBot": np.array([0.4       , 0.4       , 0.4       , 1.        ]),
                 "T0": np.array([0.9, 0.1, 0., 1.        ]),
-                "T0pp": np.array([0., 0., 1., 1.        ])}
+                "Flan-T5": np.array([0., 0., 1., 1.        ])}
 PROMPT_GROUPING = {
     "prompt_template_1": "structured",
     "prompt_template_2": "natural",
@@ -26,6 +26,18 @@ PROMPT_GROUPING = {
     "prompt_template_4": "structured",
     "prompt_template_5": "natural",
     "prompt_template_6": "natural",
+}
+LINESTYLE_GROUPING = {
+    'InstructGPT-3': "dashdot",
+    'GPT-3': "solid",
+    'Davinci-002': "dashdot",
+    'Cohere': "solid",
+    'OPT': "solid",
+    'EleutherAI': "solid",
+    'BLOOM': "solid",
+    "BlenderBot": "dotted",
+    "T0": "dashed",
+    "Flan-T5": "dashed"
 }
 GROUP_LINESTYLE = {"structured": "dashed", "natural": "dotted"}
 HUMAN_AVG_PERFORMANCE = 86.23333333333333
@@ -63,8 +75,7 @@ NUM_PARAMETERS = {
         "objective": "LM",
         "training data size": 300 * 10**9,
         "compute": 0,
-        "training data": "reddit outbound links with 3+ karma",
-        "model display name": "InstructGPT",
+        "model display name": "InstructGPT-3",
     },
     "gpt3": {
         "ada": {
@@ -116,7 +127,6 @@ NUM_PARAMETERS = {
         "objective": "LM",
         "training data size": 300 * 10**9,
         "compute": 0,
-        "training data": "reddit outbound links with 3+ karma",
         "model display name": "Davinci-002",
     },
     "cohere": {
@@ -296,6 +306,29 @@ NUM_PARAMETERS = {
         },
         "model display name": "OPT",
     },
+    "google-flan-t5": {
+        "xxl": {
+            "parameters": 11 * 10**9,
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+            "context_window": 0,
+        },
+        "l": {"parameters": 780 * 10**6,
+              "d_model": 0,
+              "num_layers": 0,
+              "d_attn": 0,
+              "d_ff": 0,
+              "context_window": 0,},
+        "xl": {"parameters": 3 * 10**9,
+               "d_model": 0,
+               "num_layers": 0,
+               "d_attn": 0,
+               "d_ff": 0,
+               "context_window": 0},
+        "model display name": "Flan-T5"
+     },
     "facebook-blenderbot": {
         "90m": {
             "parameters": 90 * 10**6,
@@ -712,6 +745,8 @@ def get_nonembedding_pars_openai(engine):
 
 
 def get_nonembedding_pars(hf_name):
+    hf_name = hf_name.split("-")
+    hf_name = f"{hf_name[0]}/{'-'.join(hf_name[1:])}"
     config = AutoConfig.from_pretrained(hf_name)
     if "blenderbot" in hf_name.lower():
         return get_nonembedding_pars_s2s(hf_name)
@@ -782,6 +817,12 @@ def parse_model_id(model_id: str):
             model_size_id = "11b"
             model = "bigscience/T0pp"
             return get_nonembedding_pars_T0(model), model_size_id, NUM_PARAMETERS["huggingface"][model_identifier]["model display name"]
+        if "flan" in model_id.lower():
+            model_identifier = "google-flan-t5"
+            model_size_id = model_id.split("-")[-1]
+            model = f"google/flan-t5-{model_size_id}"
+            return get_nonembedding_pars_T0(model), model_size_id, NUM_PARAMETERS["huggingface"][model_identifier][
+                "model display name"]
         if "T0" in model_id and "pp" not in model_id:
             model_identifier = "bigscience-T0"
             if "3b" in model_id.lower():
@@ -989,7 +1030,8 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
                 x_max = x[-1]
             line = plt.errorbar(x, y,
                                 yerr=std,
-                                label=f"{model_class}-{k}-shot", marker="o", linestyle="dashed", color=color,
+                                label=f"{model_class}-{k}-shot", marker="o", color=color,
+                                linestyle=LINESTYLE_GROUPING[name],
                                 markersize=markersize, linewidth=linewidth)
             if k == 0:
                 humanline = plt.hlines(y=human_avg, xmin=x_min, xmax=x_max, label="Avg. human",
@@ -1003,7 +1045,7 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
             legend_labels.append(f"{name}")
             legend_d[f"{name}"] = line
         if not normalize_metric:
-            randomline = plt.hlines(y=50.0, xmin=x_min, xmax=x_max, label="Random chance", linestyles="dotted",
+            randomline = plt.hlines(y=50.0, xmin=x_min, xmax=x_max, label="Random chance", linestyles="solid",
                                     color="red", linewidth=linewidth)
         # ax.set_xticks(sorted_x, sorted_x)  # Set text labels.
         plt.ylim(bottom=0., top=100.0)
@@ -1027,14 +1069,13 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
             legend_labels.append(f"Random chance")
             legend_d["Random chance"] = randomline
         if not normalize_metric:
-            loc = "lower right"
+            loc = "lower center"
         else:
             loc = "upper right"
         ordered_legend_lines = [legend_d[line_n] for line_n in label_order]
-        plt.legend(ordered_legend_lines, label_order, fontsize=24, loc=loc)
+        plt.legend(ordered_legend_lines, label_order, fontsize=27, loc=loc, ncol=3)
         plt.title(f"{k_to_str[k]}-shot accuracy on the implicature task.", fontsize=32)
         plt.tight_layout()
-        # plt.title(f"Relative to 0-shot performance increase due to in-context learning.\nError bars show std. dev. over prompt templates.", fontsize=28)
         plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
         plt.savefig(os.path.join(results_folder, f"accuracy_v_size_k={k}.png"))
         plt.clf()
@@ -1064,8 +1105,8 @@ def plot_all_lines(results_path, renormalize_metric=False, use_differences=True)
     model_ids_to_plot = ["openai-text-davinci-001",
                          "cohere-xl", "facebook-opt-175b"
                          ]
-    names = ["InstructGPT", "Cohere", "OPT"]
-    classes = ["InstructGPT", "Cohere", "OPT"]
+    names = ["InstructGPT-3", "Cohere", "OPT"]
+    classes = ["InstructGPT-3", "Cohere", "OPT"]
     sizes = ["175B", "52B", "175B"]
     zero_shot_per_model = {}
     zero_shot_per_model_per_template = defaultdict(dict)
@@ -1119,7 +1160,7 @@ def plot_all_lines(results_path, renormalize_metric=False, use_differences=True)
                     legend_lines.append(line)
                     legend_labels.append(f"Prompt template {line_key}")
         if i == 0:
-            ax.legend(handles=legend_lines, labels=legend_labels, fontsize=17, loc="upper right")
+            ax.legend(handles=legend_lines, labels=legend_labels, fontsize=17, loc="upper center")
         ax.set_xticks(k_shot, k_shot)
         ax.title.set_text(f"{names[i]}-{sizes[i]}")
         ax.title.set_size(16)
@@ -1315,6 +1356,7 @@ def extract_counter(results):
         for k, examples_per_model_per_k in examples_per_model.items():
             for template, examples in examples_per_model_per_k.items():
                 for example_id, ex_results in examples.items():
+                    example_id = str(int(example_id) % 600)
                     if example_id not in example_data:
                         cleaned_example = {}
                         for key, value in ex_results["original_example"].items():
@@ -1394,8 +1436,8 @@ def type_label_analysis():
 
     # Let's select a view models to show this for, change below to view different models
     print(f"Options of model groups to show: {list(models_sorted_by_size.keys())}")
-    models_to_show = ["Cohere", "InstructGPT"]
-    line_style_group = {"Cohere": "solid", "InstructGPT": "dashed"}
+    models_to_show = ["Cohere", "InstructGPT-3"]
+    line_style_group = {"Cohere": "solid", "InstructGPT-3": "dashed"}
     for model in models_to_show:
         print(f"Will show {model}")
         print(f"-- with sizes: {models_sorted_by_size[model]}")
@@ -1569,11 +1611,11 @@ if __name__ == "__main__":
     #     convert_lm_eval_results(lm_eval_folder, "error_analysis")
 
     file = "error_analysis/all_results.json"
-    label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
-    models_to_show = ["InstructGPT", "OPT", "Cohere"]
+    # label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
+    # models_to_show = ["InstructGPT", "OPT", "Cohere"]
     # Uncomment to show all models in paper if all_results.json downloaded from ...
-    # models_to_show = ["InstructGPT", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot"]
-    # label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
-    # plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
+    models_to_show = ["InstructGPT-3", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5"]
+    label_order = ["Best human", "Avg. human", "InstructGPT-3", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
+    plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
     # plot_all_lines(file)
-    type_label_analysis()
+    # type_label_analysis()
