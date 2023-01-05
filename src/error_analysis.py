@@ -1860,8 +1860,8 @@ def generate_chatgpt_eval_files():
                         shuffle=False, use_template=True)
 
 
-def find_example_idx(test_examples, dev_examples, found_example):
-    for i, test_example in enumerate(test_examples):
+def find_example_idx(examples, found_example):
+    for i, test_example in enumerate(examples):
         found_parts = 0
         for part in test_example[:-1]:
             if part.lower().strip("\n") in found_example.lower().strip("\n"):
@@ -1915,8 +1915,6 @@ def get_type_labels(examples):
 
 
 def eval_chatgpt_files(folder, shuffled, templated):
-    # TODO: write this for 5-shot
-
     test_csv_file = "data/test_conversational_implicatures.csv"
     column_names, test_examples = read_csv_file(test_csv_file)
     dev_csv_file = "data/dev_conversational_implicatures.csv"
@@ -1939,8 +1937,6 @@ def eval_chatgpt_files(folder, shuffled, templated):
         # If the file is answered, extract answers
         if file.endswith("answered.txt"):
 
-            if file == "no_template_no_shuffle_zero_shot_125-149_answered.txt":
-                print()
             # Filename contains number of examples in this file
             file_example_indices = file.split("_")[-2].split("-")
             first_example_idx = int(file_example_indices[0])
@@ -1985,14 +1981,19 @@ def eval_chatgpt_files(folder, shuffled, templated):
                             current_line += line
                         # Current example is done, add to examples and increment pointer
                         else:
+                            # Skip line if it's a dev example
+                            dev_example_idx = find_example_idx(dev_examples, current_line.strip("\n"))
+                            if dev_example_idx is not None:
+                                current_line = line
+                                continue
                             file_examples.append(current_line.strip("\n"))
 
                             # Match the example to the test dataset index
                             if not shuffled:
                                 example_idx = current_example_idx
-                                check_example_same(test_examples[example_idx], file_examples[-1])
                             else:
-                                example_idx = find_example_idx(test_examples, dev_examples, file_examples[-1])
+                                example_idx = find_example_idx(test_examples, file_examples[-1])
+
                             check_example_same(test_examples[example_idx], file_examples[-1])
                             file_test_examples.append(test_examples[example_idx])
                             correct_answer = test_examples[example_idx][-1].lower().strip(".")
@@ -2015,6 +2016,11 @@ def eval_chatgpt_files(folder, shuffled, templated):
                         # Current example is done, add to examples and increment pointer
                         else:
                             # answer = line.split(",")[-1].strip().lower().strip(".").strip('"')
+                            # Skip line if it's a dev example
+                            dev_example_idx = find_example_idx(dev_examples, current_answer)
+                            if dev_example_idx is not None:
+                                current_answer = line
+                                continue
                             answer = current_answer.split(",")[-1].lower().strip("\n").strip(".").strip('"')[-3:].strip()
                             if not answer:
                                 continue
@@ -2115,4 +2121,4 @@ if __name__ == "__main__":
     # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
     # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_zero_shot_answered", shuffled=True, templated=False)
     # eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
-    eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
+    eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_five_shot", shuffled=False, templated=True)
