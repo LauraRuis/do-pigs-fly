@@ -2,6 +2,7 @@ from collections import defaultdict, Counter
 from transformers import AutoConfig
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 import json
 import csv
 import os
@@ -1352,6 +1353,7 @@ def extract_counter(results):
     examples_correct_count = Counter()
     example_data = {}
     counter_per_model_per_k = defaultdict(lambda: defaultdict(Counter))
+    counter_per_model_zero_shot_per_template = defaultdict(lambda: defaultdict(Counter))
     for model, examples_per_model in example_results.items():
         for k, examples_per_model_per_k in examples_per_model.items():
             for template, examples in examples_per_model_per_k.items():
@@ -1371,9 +1373,13 @@ def extract_counter(results):
                     if example_correct:
                         examples_correct_count[example_id] += 1
                         counter_per_model_per_k[model][k][example_id] += 1
+                        if k == 0:
+                            counter_per_model_zero_shot_per_template[model][template][example_id] += 1
                     else:
                         counter_per_model_per_k[model][k][example_id] += 0
-    return counter_per_model_per_k, example_data, models_sorted_by_size, model_sizes
+                        if k == 0:
+                            counter_per_model_zero_shot_per_template[model][template][example_id] += 0
+    return counter_per_model_per_k, counter_per_model_zero_shot_per_template, example_data, models_sorted_by_size, model_sizes
 
 
 def type_label_analysis():
@@ -1410,6 +1416,7 @@ def type_label_analysis():
 
     (
         counter_per_model_per_k,
+        counter_per_model_zero_shot_per_template,
         example_data,
         models_sorted_by_size,
         model_sizes,
@@ -1456,8 +1463,9 @@ def type_label_analysis():
     lines = {}
     for group_name in models_to_show:
         lines[group_name] = {
-            label: {"x": [], "y": [], "std": []} for label in look_at_labels
+            label: {"x": [], "y": [], "y_absolute": [], "std": []} for label in look_at_labels
         }
+        lines[group_name]["Mean"] = {"x": [], "y": [], "y_absolute": [], "std": []}
         # = {"x": [], "y": [], "std": []}
         sorted_models = models_sorted_by_size[group_name]
         sorted_sizes = model_sizes[group_name]
@@ -1469,6 +1477,7 @@ def type_label_analysis():
                     continue
                 print(f"---------------- {k}-shot")
                 correct_per_type = Counter()
+                correct_per_template_per_type = defaultdict(Counter)
                 for ex_id, example_labeled in examples_with_type_labels_id.items():
                     example_correct_count_zero_shot = counter_per_model_per_k[model][k][
                         ex_id
@@ -1476,20 +1485,42 @@ def type_label_analysis():
                     correct_per_type[example_labeled["label"]] += (
                         example_correct_count_zero_shot / 6
                     )
+                    for temp_idx in range(6):
+                        example_correct_count_zero_shot_template = counter_per_model_zero_shot_per_template[model][f"prompt_template_{temp_idx + 1}"][ex_id]
+                        correct_per_template_per_type[temp_idx][example_labeled["label"]] += example_correct_count_zero_shot_template
+                        correct_per_template_per_type[temp_idx]["Mean"] += example_correct_count_zero_shot_template
                     correct_per_type["Mean"] += example_correct_count_zero_shot / 6
                 mean_correct = correct_per_type["Mean"]
                 percentage_correct_mean = mean_correct / label_dist["Mean"] * 100
                 for j, label_type in enumerate(look_at_labels):
                     type_correct = correct_per_type[label_type]
+                    perc_per_template = []
+                    for temp_idx in range(6):
+                        type_correct_per_template = correct_per_template_per_type[temp_idx][label_type]
+                        percentage_correct_template_label = (
+                            type_correct_per_template / label_dist[label_type] * 100
+                        )
+                        perc_per_template.append(percentage_correct_template_label)
                     percentage_correct_label = (
                         type_correct / label_dist[label_type] * 100
                     )
+                    std_correct_label = np.std(perc_per_template)
                     lines[group_name][label_type]["y"].append(
                         percentage_correct_label - percentage_correct_mean
                     )
+                    lines[group_name][label_type]["y_absolute"].append(
+                        percentage_correct_label
+                    )
                     lines[group_name][label_type]["x"].append(sorted_sizes[i])
+                    lines[group_name][label_type]["std"].append(std_correct_label)
+                    lines[group_name]["Mean"]["x"].append(sorted_sizes[i])
+                    lines[group_name]["Mean"]["y_absolute"].append(percentage_correct_mean)
+                    lines[group_name]["Mean"]["std"].append(0.)
                     print(
                         f"{label_type} absolute label mean: {percentage_correct_label}"
+                    )
+                    print(
+                        f"{label_type} absolute label std: {std_correct_label}"
                     )
                     print(f"{label_type} absolute mean: {percentage_correct_mean}")
 
@@ -1524,15 +1555,20 @@ def type_label_analysis():
     linewidth = 3
     markersize = 10
 
+    # Relative plot
     colors = plt.cm.Dark2(np.linspace(0, 1, num_labels))
     fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
     legend_lines, legend_labels = [], []
     x_min = float("inf")
     x_max = 0
+    saved_colors = {}
     for i, group_name in enumerate(models_to_show):
         # plt.figure(figsize=(16, 14), dpi=200)
         for j, (line_key, line_data) in enumerate(lines[group_name].items()):
-            (line,) = ax[i].plot(
+            if line_key == "Mean":
+                # Don't plot mean line for relative plot (mean line is y = 0)
+                continue
+            line = ax[i].plot(
                 line_data["x"],
                 line_data["y"],
                 label=f"Prompt template {line_key}",
@@ -1542,6 +1578,7 @@ def type_label_analysis():
                 markersize=markersize,
                 linewidth=linewidth,
             )
+            saved_colors[line_key] = colors[j]
             if min(line_data["x"]) < x_min:
                 x_min = min(line_data["x"])
             if max(line_data["x"]) > x_max:
@@ -1577,9 +1614,460 @@ def type_label_analysis():
     plt.tight_layout()
     plt.savefig(f"error_analysis/type_labels_plot.jpg")
 
+    # Absolute plot
+    saved_colors["Mean"] = "black"
+    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
+    legend_lines, legend_labels = [], []
+    x_min = float("inf")
+    x_max = 0
+    for i, group_name in enumerate(models_to_show):
+        # plt.figure(figsize=(16, 14), dpi=200)
+        for j, (line_key, line_data) in enumerate(lines[group_name].items()):
+            if line_key not in ["Particularised", "Generalised", "Other", "Mean"]:
+                continue
+            line = ax[i].errorbar(
+                line_data["x"],
+                line_data["y_absolute"],
+                yerr=line_data["std"],
+                label=f"Prompt template {line_key}",
+                marker="o",
+                color=saved_colors[line_key],
+                linestyle="solid" if line_key != "Mean" else "dotted",
+                markersize=markersize,
+                linewidth=linewidth,
+            )
+            if min(line_data["x"]) < x_min:
+                x_min = min(line_data["x"])
+            if max(line_data["x"]) > x_max:
+                x_max = max(line_data["x"])
+            if i == 0:
+                legend_lines.append(line)
+                if line_key == "Mean":
+                    line_key = "All types"
+                legend_labels.append(f"{line_key}")
+        plt.xscale("log")
+        ax[i].xaxis.set_tick_params(labelsize=24)
+        ax[i].yaxis.set_tick_params(labelsize=24)
+        ax[i].title.set_text(f"{group_name}")
+        ax[i].title.set_size(24)
+        ax[i].set_ylim(0., 100.)
+        if i == 0:
+            ax[i].set_ylabel("Accuracy (%)", fontsize=28)
+        ax[i].set_xlabel("Model Parameters (Non-Embedding)", fontsize=28)
+    for i in range(len(ax)):
+        randomline = ax[i].hlines(
+            y=50.0,
+            xmin=x_min,
+            xmax=x_max,
+            label="Random chance",
+            linestyles="dotted",
+            color="red",
+            linewidth=linewidth,
+        )
+    legend_lines.append(randomline)
+    legend_labels.append("Random chance")
+    ax[0].legend(legend_lines, legend_labels, fontsize=20, loc="lower left")
+    plt.suptitle(
+        f"Accuracy for each type of implicature.", fontsize=28
+    )
+    plt.subplots_adjust(top=0.85)
+    plt.tight_layout()
+    plt.savefig(f"error_analysis/type_labels_plot_absolute.jpg")
+
     print(f"Found {found_labels} non-other labeled examples")
     print(f"Distributed as: {label_dist}")
     print(f"Total count: {sum(label_dist.values()) - label_dist['Mean']}")
+
+
+def write_to_csv(all_results_file: str):
+    models_to_write = ["openai-davinci", "openai-text-davinci-001", "openai-text-davinci-002"]
+    with open(all_results_file, "r") as infile:
+        all_results = json.load(infile)
+
+    num_examples = 600
+    lines = [["model", "k", "ID", "utterance", "response", "implicature", "1", "2", "3", "4", "5", "6"]]
+    for k in all_results.keys():
+        for model in models_to_write:
+            model_k_results = all_results[k][model]
+            for ex_id in range(num_examples):
+                utterance = model_k_results["example_results"][f"prompt_template_1"][str(ex_id)]["original_example"]["utterance"]
+                response = model_k_results["example_results"][f"prompt_template_1"][str(ex_id)]["original_example"]["response"]
+                true = model_k_results["example_results"][f"prompt_template_1"][str(ex_id)]["original_example"]["implicature"]
+                line = [model, k, ex_id, utterance, response, true]
+                for prompt_idx in range(1, 7):
+                    example_result = model_k_results["example_results"][f"prompt_template_{prompt_idx}"][str(ex_id)]
+                    line.append(example_result["pred"] == true)
+                lines.append(line)
+    with open("error_analysis/example_results_openai.csv", "w") as outfile:
+        writer = csv.writer(outfile)
+        writer.writerows(lines)
+    return
+
+
+def prepare_chatgpt_examples(example_batch, add_answers=False, use_template=False):
+    if not add_answers:
+        num_columns = 2
+    else:
+        num_columns = 3
+    quoted_examples = []
+    for example in example_batch:
+        example[2] = example[2][:4].strip()
+        if not use_template:
+            quoted_example = []
+            for col in example:
+                quoted_example.append(f'\"{col}\"')
+            quoted_examples.append(','.join(quoted_example[:num_columns]) + "\n")
+        else:
+            if add_answers:
+                implicature = example[2].replace(".", "").replace('\"', "").lower()
+                quoted_example = f'Esther asked \"{example[0]}\" and Juan responded \"{example[1]}\", which means {implicature}.\n"'
+            else:
+                quoted_example = f'Esther asked \"{example[0]}\" and Juan responded \"{example[1]}\", which means\n'
+            quoted_examples.append(quoted_example)
+    example_string = f"{''.join(quoted_examples)}"
+    return example_string
+
+
+def make_chatgpt_string(prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path,
+                        file_name, shuffle, use_template):
+    if not os.path.exists(folder_path):
+        os.mkdir(folder_path)
+
+    if k_shot > 0:
+        prompt += f" For the first {k_shot} lines the correct value is already provided."
+        if not use_template:
+            prompt += f"\n\n{','.join(column_names[:2])}\n"
+        else:
+            prompt += "\n\n"
+        k_shot_examples = dev_examples[:k_shot]
+        k_shot_string = prepare_chatgpt_examples(k_shot_examples, add_answers=True, use_template=use_template)
+        prompt += k_shot_string
+    else:
+        if not use_template:
+            prompt += f"\n\n{','.join(column_names[:2])}\n"
+        else:
+            prompt += "\n\n"
+
+    if shuffle:
+        random.shuffle(examples)
+    for i in range(0, len(examples), num_examples_per_prompt):
+        example_batch = examples[i:i + num_examples_per_prompt]
+        example_string = prepare_chatgpt_examples(example_batch, add_answers=False, use_template=use_template)
+
+        with open(
+                f"{folder_path}/{file_name}_{i}-{i + num_examples_per_prompt - 1}.txt",
+                "w") as outfile:
+            outfile.write(f"{prompt}{example_string}")
+
+
+def read_csv_file(file):
+    with open(file, "r") as infile:
+        csv_reader = csv.reader(infile)
+        data = []
+        for row in csv_reader:
+            data.append(row)
+        column_names = data[0]
+        examples = data[1:]
+    return column_names, examples
+
+
+def generate_chatgpt_eval_files():
+    test_csv_file = "data/test_conversational_implicatures.csv"
+    column_names, examples = read_csv_file(test_csv_file)
+    dev_csv_file = "data/dev_conversational_implicatures.csv"
+    dev_column_names, dev_examples = read_csv_file(dev_csv_file)
+    random.shuffle(dev_examples)
+
+    prompt = f"Below is a csv file of a Q and A dataset. The columns are Context utterance and Response utterance, " \
+             "The context utterance column contains questions asked by Speaker A. The response utterance column " \
+             "contains the answer provided by Speaker B in response. For each line of the csv, repeat the line and add the correct " \
+             "value of yes or no, which specifies whether Speaker B' response (in the Response utterance column) in " \
+             f"response to Speaker A's question (in the Context utterance column) means yes or no."
+
+    templated_prompt = f"Below is a list of sentences. In every line, Esther asks Juan a question, and Juan responds. " \
+                        "Each response implies either yes or no. For each line of the csv, repeat the sentence and add the correct " \
+                        "value of yes or no, which specifies whether Juan's response in " \
+                        f"response to Esther's question means yes or no."
+
+    num_examples_per_prompt = 25
+    k_shot = 0
+
+    # No shuffle 0-shot
+    folder_path = "data/wrong_chatGPT/no_template_no_shuffle_zero_shot"
+    file_name = "no_template_no_shuffle_zero_shot"
+    make_chatgpt_string(prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path, file_name,
+                        shuffle=False, use_template=False)
+
+    # No shuffle template 0-shot
+    folder_path = "data/wrong_chatGPT/template_no_shuffle_zero_shot"
+    file_name = "template_no_shuffle_zero_shot"
+    make_chatgpt_string(templated_prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path,
+                        file_name,
+                        shuffle=False, use_template=True)
+
+    # No shuffle 5-shot
+    k_shot = 5
+    num_examples_per_prompt = 20
+    folder_path = "data/chatGPT/no_template_no_shuffle_five_shot"
+    file_name = "no_template_no_shuffle_five_shot"
+    make_chatgpt_string(prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path, file_name,
+                        shuffle=False, use_template=False)
+
+    # No shuffle template 5-shot
+    k_shot = 5
+    num_examples_per_prompt = 20
+    folder_path = "data/chatGPT/template_no_shuffle_five_shot"
+    file_name = "template_no_shuffle_five_shot"
+    make_chatgpt_string(templated_prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples,
+                        folder_path,
+                        file_name,
+                        shuffle=False, use_template=True)
+
+    # Shuffle one 0-shot
+    k_shot = 0
+    num_examples_per_prompt = 25
+    folder_path = "data/wrong_chatGPT/no_template_shuffle_one_zero_shot"
+    file_name = "no_template_shuffle_one_zero_shot"
+    make_chatgpt_string(prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path, file_name,
+                        shuffle=True, use_template=False)
+
+    # Shuffle one template 0-shot
+    k_shot = 0
+    num_examples_per_prompt = 25
+    folder_path = "data/wrong_chatGPT/template_shuffle_one_zero_shot"
+    file_name = "template_shuffle_one_zero_shot"
+    make_chatgpt_string(templated_prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples,
+                        folder_path,
+                        file_name,
+                        shuffle=False, use_template=True)
+
+    # Shuffle one 5-shot
+    k_shot = 5
+    num_examples_per_prompt = 20
+    folder_path = "data/chatGPT/no_template_shuffle_one_five_shot"
+    file_name = "no_template_shuffle_one_five_shot"
+    make_chatgpt_string(prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples, folder_path, file_name,
+                        shuffle=False, use_template=False)
+
+    # Shuffle one template 5-shot
+    k_shot = 5
+    num_examples_per_prompt = 20
+    folder_path = "data/chatGPT/template_shuffle_one_five_shot"
+    file_name = "template_shuffle_one_five_shot"
+    make_chatgpt_string(templated_prompt, column_names, examples, num_examples_per_prompt, k_shot, dev_examples,
+                        folder_path,
+                        file_name,
+                        shuffle=False, use_template=True)
+
+
+def find_example_idx(test_examples, dev_examples, found_example):
+    for i, test_example in enumerate(test_examples):
+        found_parts = 0
+        for part in test_example[:-1]:
+            if part.lower().strip("\n") in found_example.lower().strip("\n"):
+                found_parts += 1
+        if found_parts == 2:
+            return i
+
+
+def check_example_same(dataset_example, found_example):
+    for part in dataset_example[:-1]:
+        assert part.lower().replace("\n", "").replace(" ", "").strip("\n") in found_example.lower().replace("\n", "").replace(" ", "").strip("\n")
+
+
+def get_type_labels(examples):
+    file = "data/type_labels.csv"
+    with open(file, "r") as infile:
+        file_reader = csv.reader(infile)
+        keys = []
+        examples_with_type_labels = {}
+        for i, row in enumerate(file_reader):
+            if i == 0:
+                keys.extend(row)
+            else:
+                example = {
+                    "utterance": row[0],
+                    "response": row[1],
+                    "implicature": row[2].strip(".").lower(),
+                    "label": row[3],
+                    "factual": row[4],
+                }
+                examples_with_type_labels[row[0].replace("\r", "")] = example
+
+    # Get the example IDs for the labeled examples
+    examples_with_type_labels_id = {}
+    found_labels = 0
+    label_dist = Counter()
+
+    for ex_id, example in enumerate(examples):
+        key = example[0].replace("\r", "")
+        if key in examples_with_type_labels:
+            example_labeled = examples_with_type_labels[
+                example[0].replace("\r", "")
+            ]
+            found_labels += 1
+        else:
+            example_labeled = {"label": "Other", "example": example}
+        label_dist[example_labeled["label"]] += 1
+        label_dist["Mean"] += 1
+        examples_with_type_labels_id[ex_id] = example_labeled
+    return examples_with_type_labels_id
+
+
+def eval_chatgpt_files(folder, shuffled, templated):
+    # TODO: write this for 5-shot
+
+    test_csv_file = "data/test_conversational_implicatures.csv"
+    column_names, test_examples = read_csv_file(test_csv_file)
+    dev_csv_file = "data/dev_conversational_implicatures.csv"
+    dev_column_names, dev_examples = read_csv_file(dev_csv_file)
+
+    examples = []
+    test_examples_ordered = []
+    correct_answers = []
+    chatgpt_answers = []
+    full_chatgpt_answers = []
+    test_example_ids = []
+    type_labels = []
+
+    type_labeled_examples = get_type_labels(test_examples)
+
+    file_counter = 0
+    # Loop over the files in the folder
+    for file in os.listdir(folder):
+
+        # If the file is answered, extract answers
+        if file.endswith("answered.txt"):
+
+            if file == "no_template_no_shuffle_zero_shot_125-149_answered.txt":
+                print()
+            # Filename contains number of examples in this file
+            file_example_indices = file.split("_")[-2].split("-")
+            first_example_idx = int(file_example_indices[0])
+            num_examples = int(file_example_indices[1]) - int(file_example_indices[0]) + 1
+
+            # Loop over lines and extract the examples and the answers
+            with open(os.path.join(folder, file), "r") as infile:
+
+                # Keep track of whether we are still at prompt or already at answers by chatGPT
+                at_answers = False
+                current_line = ""
+                current_answer = ""
+                current_example_idx = first_example_idx
+
+                file_examples = []
+                file_chatgpt_answers = []
+                file_correct_answers = []
+                file_test_examples = []
+                file_full_chatgpt_answers = []
+                file_test_example_ids = []
+                file_type_labels = []
+
+                # Each line contains an example or an answered example
+                for line in infile.readlines():
+
+                    # Skip this line
+                    if "Context utterance" in line or "Below is a list of sentences" in line:
+                        continue
+
+                    # if the line contains "ANSWER:" we are at the answers
+                    if "ANSWER:" in line:
+                        at_answers = True
+                        continue
+
+                    # If not yet at the answers, save the example
+                    if not at_answers:
+
+                        # Examples can contain linebreaks, so add to current example until we have 4 "'s
+                        if not templated and current_line.count('"') < 4:
+                            current_line += line
+                        elif templated and ("which means" not in current_line.lower()):
+                            current_line += line
+                        # Current example is done, add to examples and increment pointer
+                        else:
+                            file_examples.append(current_line.strip("\n"))
+
+                            # Match the example to the test dataset index
+                            if not shuffled:
+                                example_idx = current_example_idx
+                                check_example_same(test_examples[example_idx], file_examples[-1])
+                            else:
+                                example_idx = find_example_idx(test_examples, dev_examples, file_examples[-1])
+                            check_example_same(test_examples[example_idx], file_examples[-1])
+                            file_test_examples.append(test_examples[example_idx])
+                            correct_answer = test_examples[example_idx][-1].lower().strip(".")
+                            correct_answer = correct_answer.split(" ")[0].strip().lower().strip(".").strip(",").strip('"')
+                            file_correct_answers.append(correct_answer)
+                            file_test_example_ids.append(example_idx)
+                            file_type_labels.append(type_labeled_examples[example_idx]["label"])
+
+                            current_example_idx += 1
+                            current_line = line
+
+                    # We are at the answers, only extract yes or no.
+                    else:
+                        # Examples can contain linebreaks, so add to current example until we have 4 "'s
+                        # Examples can contain linebreaks, so add to current example until we have 4 "'s
+                        if not templated and current_answer.count('"') < 4:
+                            current_answer += line
+                        elif templated and ("which means" not in current_answer.lower()):
+                            current_answer += line
+                        # Current example is done, add to examples and increment pointer
+                        else:
+                            # answer = line.split(",")[-1].strip().lower().strip(".").strip('"')
+                            answer = current_answer.split(",")[-1].lower().strip("\n").strip(".").strip('"')[-3:].strip()
+                            if not answer:
+                                continue
+                            file_full_chatgpt_answers.append(current_answer)
+                            assert answer in ["yes", "no"], f"Answer is {answer}"
+                            file_chatgpt_answers.append(answer)
+                            current_answer = line
+                # Process last answer as well
+                answer = current_answer.split(",")[-1].lower().strip("\n").strip(".").strip('"')[-3:].strip()
+                if answer:
+                    assert answer in ["yes", "no"], f"Answer is {answer}"
+                    file_chatgpt_answers.append(answer)
+                    file_full_chatgpt_answers.append(current_answer)
+            assert len(file_examples) == num_examples
+            assert len(file_correct_answers) == num_examples
+            assert len(file_chatgpt_answers) == num_examples
+            examples.extend(file_examples)
+            correct_answers.extend(file_correct_answers)
+            chatgpt_answers.extend(file_chatgpt_answers)
+            test_examples_ordered.extend(file_test_examples)
+            test_example_ids.extend(file_test_example_ids)
+            full_chatgpt_answers.extend(file_full_chatgpt_answers)
+            type_labels.extend(file_type_labels)
+            file_counter += 1
+    folder_accuracy = (np.array(chatgpt_answers) == np.array(correct_answers)).sum() / len(correct_answers)
+    print(f"Evaluated folder {folder}")
+    print(f"Num examples answered: {len(correct_answers)}")
+    print(f"Folder accuracy: {folder_accuracy * 100}")
+    deepest_folder = folder.split("/")[-1]
+    labeled_accuracy = {
+        "particularised": {"correct": 0, "total": 0},
+        "generalised": {"correct": 0, "total": 0},
+        "other": {"correct": 0, "total": 0},
+    }
+    with open(os.path.join(folder, f'{deepest_folder}.csv'), "w") as infile:
+        writer = csv.writer(infile)
+        writer.writerow(["Prompt example", "Example ID", "Context", "Response", "Implicature", "Type label",
+                         "Full ChatGPT answer", "ChatGPT answer", "Correct answer"])
+        for example, test_example_id, test_example, type_label, full_chatgpt_answer, chatgpt_answer, correct_answer in zip(
+            examples, test_example_ids, test_examples_ordered, type_labels, full_chatgpt_answers, chatgpt_answers,
+                correct_answers):
+            current_row = [example, test_example_id] + test_example + [type_label, full_chatgpt_answer, chatgpt_answer,
+                                                                       correct_answer]
+            example_correct = chatgpt_answer == correct_answer
+            if type_label.lower() in ["particularised", "generalised", "other"]:
+                if example_correct:
+                    labeled_accuracy[type_label.lower()]["correct"] += 1
+                labeled_accuracy[type_label.lower()]["total"] += 1
+            writer.writerow(current_row)
+    for type_label, type_results in labeled_accuracy.items():
+        print("---- labelled accuracy ----")
+        print(f"Accuracy label {type_label} is {(type_results['correct'] / type_results['total']) * 100}")
+    print(f"Wrote results to {os.path.join(folder, f'{deepest_folder}.csv')}")
 
 
 if __name__ == "__main__":
@@ -1616,6 +2104,15 @@ if __name__ == "__main__":
     # Uncomment to show all models in paper if all_results.json downloaded from ...
     # models_to_show = ["InstructGPT-3", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5"]
     # label_order = ["Best human", "Avg. human", "InstructGPT-3", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
-    plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
+    # plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
     # plot_all_lines(file)
     # type_label_analysis()
+    # write_to_csv(file)
+
+    # generate_chatgpt_eval_files()
+
+    # eval_chatgpt_files(folder="data/chatGPT/no_template_no_shuffle_zero_shot_answered", shuffled=False, templated=False)
+    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
+    # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_zero_shot_answered", shuffled=True, templated=False)
+    # eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
+    eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
