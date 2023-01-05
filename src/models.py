@@ -30,6 +30,7 @@ class Model:
 class CohereModelWrapper(Model):
 
     MODELS = {
+        "commandxl": "command-xlarge",
         "xl": "xlarge",
         "large": "large",
         "medium": "medium",
@@ -93,6 +94,8 @@ class CohereModelWrapper(Model):
 class OpenAIModel(Model):
 
     MODELS = {
+        "davinciinstructbeta": "davinci-instruct-beta",
+        "textdavinci003": "text-davinci-003",
         "textdavinci002": "text-davinci-002",
         "textdavinci001": "text-davinci-001",
         "davinci": "davinci",
