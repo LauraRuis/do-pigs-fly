@@ -1,18 +1,28 @@
 from collections import defaultdict, Counter
 from transformers import AutoConfig
 import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
 import random
+import copy
 import json
 import csv
 import os
+import re
+import editdistance
 
 from src.probe_llm import load_datasets
 
+plt.rcParams["font.family"] = "Times New Roman"
 
-MODEL_COLORS = {'InstructGPT-3': np.array([0.10588235, 0.61960784, 0.46666667, 1.        ]),
+# TODO: add chatgpt
+MODEL_COLORS = {'text-<engine>-001': np.array([0.10588235, 0.61960784, 0.46666667, 1.        ]),
+                'Cohere-command': np.array([0.10588235, 0.46666667, 0.61960784, 1.        ]),
                 'GPT-3': np.array([0.61960784, 0.10588235, 0.46666667, 1.        ]),
-                'Davinci-002': np.array([0.85098039, 0.37254902, 0.00784314, 1.        ]),
+                'text-davinci-002': np.array([0.85098039, 0.37254902, 0.00784314, 1.        ]),
+                'text-davinci-003': np.array([0.37254902, 0.00784314, 0.85098039, 1.        ]),
+                'ChatGPT': np.array([0.85098039, 0.00784314, 0.37254902, 1.        ]),
+                'GPT-4': np.array([0.85098039, 0.00784314, 0.37254902, 1.        ]),
                 'Cohere': np.array( [0.45882353, 0.43921569, 0.70196078, 1.        ]),
                 'OPT': np.array([0.90588235, 0.16078431, 0.54117647, 1.        ]),
                 'EleutherAI': np.array([0.4       , 0.65098039, 0.11764706, 1.        ]),
@@ -29,9 +39,13 @@ PROMPT_GROUPING = {
     "prompt_template_6": "natural",
 }
 LINESTYLE_GROUPING = {
-    'InstructGPT-3': "dashdot",
+    'text-<engine>-001': "dashdot",
+    'Cohere-command': "dashdot",
     'GPT-3': "solid",
-    'Davinci-002': "dashdot",
+    'text-davinci-002': "dashdot",
+    'text-davinci-003': "dashdot",
+    'GPT-4': "dashdot",
+    'ChatGPT': "dashdot",
     'Cohere': "solid",
     'OPT': "solid",
     'EleutherAI': "solid",
@@ -76,7 +90,7 @@ NUM_PARAMETERS = {
         "objective": "LM",
         "training data size": 300 * 10**9,
         "compute": 0,
-        "model display name": "InstructGPT-3",
+        "model display name": "text-<engine>-001",
     },
     "gpt3": {
         "ada": {
@@ -128,7 +142,46 @@ NUM_PARAMETERS = {
         "objective": "LM",
         "training data size": 300 * 10**9,
         "compute": 0,
-        "model display name": "Davinci-002",
+        "model display name": "text-davinci-002",
+    },
+    "text-davinci-003": {
+        "InstructGPT": {
+            "parameters": 175 * 10**9,
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "objective": "LM",
+        "training data size": 300 * 10**9,
+        "compute": 0,
+        "model display name": "text-davinci-003",
+    },
+    "ChatGPT": {
+        "ChatGPT": {
+            "parameters": 175 * 10**9,
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "objective": "LM",
+        "training data size": 300 * 10**9,
+        "compute": 0,
+        "model display name": "ChatGPT",
+    },
+    "GPT-4": {
+        "GPT-4": {
+            "parameters": 175 * 10**9,
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "objective": "LM",
+        "training data size": 300 * 10**9,
+        "compute": 0,
+        "model display name": "GPT-4",
     },
     "cohere": {
         "small": {
@@ -141,6 +194,15 @@ NUM_PARAMETERS = {
             "d_ff": 0,
         },
         "medium": {
+            "parameters": 6.067 * 10**9,
+            "nonembedding-parameters": 6.067 * 10**9 - 205852672,
+            "size_str": "6b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "commandmedium": {
             "parameters": 6.067 * 10**9,
             "nonembedding-parameters": 6.067 * 10**9 - 205852672,
             "size_str": "6b",
@@ -167,7 +229,73 @@ NUM_PARAMETERS = {
             "d_attn": 0,
             "d_ff": 0,
         },
+        "commandxl": {
+            "parameters": 52.4 * 10**9,
+            "nonembedding-parameters": 52.4 * 10**9 - 411705344,
+            "size_str": "52b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
         "model display name": "Cohere",
+    },
+    "cohere-command": {
+        "commandmedium": {
+            "parameters": 6.067 * 10**9,
+            "nonembedding-parameters": 6.067 * 10**9 - 205852672,
+            "size_str": "6b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "commandxl": {
+            "parameters": 52.4 * 10**9,
+            "nonembedding-parameters": 52.4 * 10**9 - 411705344,
+            "size_str": "52b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "command-medium": {
+            "parameters": 6.067 * 10**9,
+            "nonembedding-parameters": 6.067 * 10**9 - 205852672,
+            "size_str": "6b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "command-xl": {
+            "parameters": 52.4 * 10**9,
+            "nonembedding-parameters": 52.4 * 10**9 - 411705344,
+            "size_str": "52b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "commandmediumnightly": {
+            "parameters": 6.067 * 10**9,
+            "nonembedding-parameters": 6.067 * 10**9 - 205852672,
+            "size_str": "6b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "commandxlnightly": {
+            "parameters": 52.4 * 10**9,
+            "nonembedding-parameters": 52.4 * 10**9 - 411705344,
+            "size_str": "52b",
+            "d_model": 0,
+            "num_layers": 0,
+            "d_attn": 0,
+            "d_ff": 0,
+        },
+        "model display name": "Cohere-command",
     },
     "huggingface": {"bigscience-bloom": {
         "176b": {
@@ -311,19 +439,22 @@ NUM_PARAMETERS = {
         "xxl": {
             "parameters": 11 * 10**9,
             "d_model": 0,
+            "size_str": "11b",
             "num_layers": 0,
             "d_attn": 0,
             "d_ff": 0,
             "context_window": 0,
         },
-        "l": {"parameters": 780 * 10**6,
+        "large": {"parameters": 780 * 10**6,
               "d_model": 0,
               "num_layers": 0,
+              "size_str": "780m",
               "d_attn": 0,
               "d_ff": 0,
               "context_window": 0,},
         "xl": {"parameters": 3 * 10**9,
                "d_model": 0,
+               "size_str": "3b",
                "num_layers": 0,
                "d_attn": 0,
                "d_ff": 0,
@@ -621,6 +752,24 @@ def error_analysis_per_k(results_folder, output_folder):
     model_ids.remove("arguments")
     k_shot = str(results["arguments"]["k_shot"])
 
+    write_model_ids_table = {
+        "cohere-commandmedium": "cohere-command-medium",
+        "cohere-commandxl": "cohere-command-xl",
+        "openai-ada": "openai-ada",
+        "openai-babbage": "openai-babbage",
+        "openai-chatgpt": "openai-chatgpt",
+        "openai-curie": "openai-curie",
+        "openai-davinci": "openai-davinci",
+        "openai-gpt4": "openai-gpt4",
+        "openai-textada001": "openai-text-ada-001",
+        "openai-textbabbage001": "openai-text-babbage-001",
+        "openai-textcurie001": "openai-text-curie-001",
+        "openai-textdavinci001": "openai-text-davinci-001",
+        "openai-textdavinci002": "openai-text-davinci-002",
+        "openai-textdavinci003": "openai-text-davinci-003",
+    }
+    write_model_ids = [write_model_ids_table[model_id] for model_id in model_ids]
+
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
@@ -637,7 +786,7 @@ def error_analysis_per_k(results_folder, output_folder):
 
     # Loop over all the models and save results per k.
     result_analysis = {k_shot: {}}
-    for model_id in model_ids:
+    for i, model_id in enumerate(model_ids):
         model_results_folder = os.path.join(output_folder, model_id)
         if not os.path.exists(model_results_folder):
             os.mkdir(model_results_folder)
@@ -659,7 +808,7 @@ def error_analysis_per_k(results_folder, output_folder):
             "std": results[model_id]["std"],
             "template_results": template_results,
         }
-        result_analysis[k_shot][model_id] = model_results
+        result_analysis[k_shot][write_model_ids[i]] = model_results
     example_results_per_model = {
         model_id: defaultdict(lambda: defaultdict(dict)) for model_id in model_ids
     }
@@ -672,6 +821,8 @@ def error_analysis_per_k(results_folder, output_folder):
         prompt_examples = predictions_per_model["prompt_examples"]
         true = predictions_per_model["original_example"]["implicature"]
         for prompt_template in template_keys_translation.keys():
+            if prompt_template not in model_results:
+                continue
             example_correct = model_results[prompt_template]["implicature_result"][
                 "example_correct"
             ]
@@ -686,8 +837,8 @@ def error_analysis_per_k(results_folder, output_folder):
                 "correct": int(example_correct),
                 "prompt_examples": prompt_examples,
             }
-    for model_id in example_results_per_model.keys():
-        result_analysis[k_shot][model_id][
+    for i, model_id in enumerate(example_results_per_model.keys()):
+        result_analysis[k_shot][write_model_ids[i]][
             "example_results"
         ] = example_results_per_model[model_id]
     # Write results for all models to a file
@@ -709,7 +860,6 @@ def save_results(save_folder, results):
             if model in existing_results[k]:
                 print(f"WARNING: overwriting results for {model} {k}-shot")
             existing_results[k][model] = model_results
-
     with open(results_path, "w") as outfile:
         json.dump(existing_results, outfile, indent=4)
     return results_path
@@ -781,22 +931,37 @@ def parse_model_id(model_id: str):
     :return:
     """
     model = "-".join(model_id.split("-")[1:])
-    if model == "text-davinci-002":
+    if model == "text-davinci-002" or model == "textdavinci002":
         model_class = "text-davinci-002"
         model = "davinci002"
+    elif model == "textdavinci003" or model == "text-davinci-003":
+        model_class = "text-davinci-003"
+        model = "davinci003"
+    elif model == "chatgpt":
+        model_class = "ChatGPT"
+        model = "chatgpt"
+    elif model == "gpt4":
+        model_class = "GPT-4"
+        model = "GPT-4"
     elif "text" in model:
-        model_class = "openai"
+        model_class = "text-<engine>-001"
     elif "openai" in model_id:
         model_class = "gpt3"
-    elif "cohere" in model_id:
+    elif "cohere" in model_id.lower() and "command" not in model_id:
         model_class = "cohere"
+    elif "cohere" in model_id.lower() and "command" in model_id:
+        model_class = "cohere-command"
     else:
         model_class = "huggingface"
         model = model_id
 
-    if model == "davinci002":
+    if model == "davinci001" or model == "davinci002" or model == "davinci003" or model == "chatgpt" or model == "GPT-4":
         # Don't know the size.
-        return 0, "unknown", model
+        return 0, "unknown", model_class
+
+    if "text" in model:
+        engine = model.split("-")[-2]
+        return 0, engine, model_class
 
     if model_class == "huggingface":
         model_identifier = "-".join(model.split("-")[:-1])
@@ -822,6 +987,7 @@ def parse_model_id(model_id: str):
             model_identifier = "google-flan-t5"
             model_size_id = model_id.split("-")[-1]
             model = f"google/flan-t5-{model_size_id}"
+            model_size_id = NUM_PARAMETERS["huggingface"][model_identifier][model_size_id]["size_str"]
             return get_nonembedding_pars_T0(model), model_size_id, NUM_PARAMETERS["huggingface"][model_identifier][
                 "model display name"]
         if "T0" in model_id and "pp" not in model_id:
@@ -871,7 +1037,7 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
         human_avg, human_best = HUMAN_AVG_PERFORMANCE, HUMAN_BEST_PERFORMANCE
     results_folder = results_path.split("/")[0]
     k_shot = [int(k) for k in list(results.keys())]
-    k_shot = [0]  # TODO: change once all results in
+    # k_shot = [5]  # TODO: change once all results in
     lines = {}
     model_classes = []
     colors_counter = -1
@@ -881,6 +1047,8 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
         if k not in lines:
             lines[k] = {}
         for model_id in data.keys():
+            if "cohere-command" in model_id and "nightly" in model_id:
+                continue
             model_size, _, name = parse_model_id(model_id)
             if name not in models_to_show:
                 continue
@@ -943,13 +1111,24 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
     plt.title(title, fontsize=18)
     plt.savefig(os.path.join(results_folder, f"accuracy_v_size.png"))
     # different plot per k-shot in subplots graph
-    fig, axs = plt.subplots(3, 2, sharey=True, sharex=True, figsize=(16, 18), dpi=600)
+    # fig, axs = plt.subplots(3, 2, sharey=True, sharex=True, figsize=(16, 18), dpi=600)
+    fig, axs = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(28, 14), dpi=600)
     # model_colors = plt.cm.Dark2(np.linspace(0, 1, len(model_classes)))
     legend_lines, legend_labels = [], []
     x_min = float("inf")
     x_max = 0
-    for i, k in enumerate(k_shot):
-        ax = axs[int(i // 2), i % 2]
+    adjusted_k_shot = [0, 5]
+    k_to_str = {0: "Zero",
+                1: "One",
+                5: "Five",
+                10: "Ten",
+                15: "Fifteen",
+                30: "Thirty"}
+    legend_d = {}
+    legend_lines, legend_labels = [], []
+    for i, k in enumerate(adjusted_k_shot):
+        # ax = axs[int(i // 2), i % 2]
+        ax = axs[i % 2]
         for j, model_class in enumerate(list(model_classes)):
             color = MODEL_COLORS[model_class]
             x = lines[k][model_class]["mean_line"]["x"]
@@ -963,7 +1142,7 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
                 x_max = x[-1]
             line = ax.errorbar(x, y,
                                yerr=std,
-                               label=f"{name}-{k}-shot", marker="o", linestyle="dashed", color=color,
+                               label=f"{name}-{k}-shot", marker="o", linestyle=LINESTYLE_GROUPING[name], color=color,
                                markersize=markersize, linewidth=linewidth)
             if k == 0:
                 humanline = ax.hlines(y=human_avg, xmin=x_min, xmax=x_max, label="Avg. human", linestyles="solid",
@@ -971,16 +1150,20 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
                 humanlinebest = ax.hlines(y=human_best, xmin=x_min, xmax=x_max, label="Best human",
                                       linestyles="solid",
                                       color="black", linewidth=linewidth)
-            if not normalize_metric and k == 0:
-                randomline = ax.hlines(y=50.0, xmin=x_min, xmax=x_max, label="Random chance", linestyles="dotted", color="red", linewidth=linewidth)
+            # if not normalize_metric and k == 0:
+            #     randomline = ax.hlines(y=50.0, xmin=x_min, xmax=x_max, label="Random chance", linestyles="dotted", color="red", linewidth=linewidth)
+            if not normalize_metric:
+                randomline = ax.hlines(y=50.0, xmin=x_min, xmax=x_max, label="Random chance", linestyles="solid",
+                                       color="red", linewidth=linewidth)
             if i == 0:
                 legend_lines.append(line)
                 legend_labels.append(f"{name}")
+                legend_d[f"{name}"] = line
             # ax.set_xticks(sorted_x, sorted_x)  # Set text labels.
             plt.ylim(bottom=0., top=100.0)
             ax.set_xscale("log")
-            ax.title.set_text(f"{k}-shot")
-            ax.title.set_size(16)
+            ax.title.set_text(f"{k_to_str[k]}-shot.")
+            ax.title.set_size(20)
             if i % 2 == 0:
                 ylabel = "Accuracy (%)"
                 if normalize_metric:
@@ -989,20 +1172,31 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
             ax.xaxis.set_tick_params(labelsize=18)
             ax.yaxis.set_tick_params(labelsize=20)
             # ax.set_xticks(fontsize=18)
-            if int(i // 2) == 2:
+            if int(i // 2) == 0:
                 ax.set_xlabel("Model Parameters (Non-Embedding)", fontsize=24)
     plt.ylim(bottom=0., top=100.0)
     legend_lines.append(humanline)
     legend_labels.append(f"Avg. human")
+    legend_d["Avg. human"] = humanline
     legend_lines.append(humanlinebest)
     legend_labels.append(f"Best human")
+    legend_d["Best human"] = humanlinebest
     if not normalize_metric:
         legend_lines.append(randomline)
         legend_labels.append(f"Random chance")
-    fig.legend(legend_lines, legend_labels, fontsize=18)
-    plt.suptitle(f"Performance on the implicature task \nfor all k-shot evaluations", fontsize=28)
+        legend_d["Random chance"] = randomline
+    if not normalize_metric:
+        loc = "lower center"
+    else:
+        loc = "upper right"
+    # fig.legend(legend_lines, legend_labels, fontsize=18)
+    ordered_legend_lines = [legend_d[line_n] for line_n in label_order]
+    fig.legend(ordered_legend_lines, label_order, fontsize=26, bbox_to_anchor=[0.5, 0.1], loc=loc, ncol=3)
+    plt.suptitle(f"Performance on the implicature task \nfor k-shot evaluations", fontsize=28)
+    # plt.tight_layout()
+    # plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
+    plt.subplots_adjust(top=0.75)
     plt.tight_layout()
-    plt.subplots_adjust(top=0.9)
     plt.savefig(os.path.join(results_folder, f"accuracy_v_size_subplots.png"))
     plt.clf()
 
@@ -1104,11 +1298,11 @@ def plot_all_lines(results_path, renormalize_metric=False, use_differences=True)
     lines = {}
     model_ids = []
     model_ids_to_plot = ["openai-text-davinci-001",
-                         "cohere-xl", "facebook-opt-175b"
+                         "cohere-commandxl", "facebook-opt-175b"
                          ]
-    names = ["InstructGPT-3", "Cohere", "OPT"]
-    classes = ["InstructGPT-3", "Cohere", "OPT"]
-    sizes = ["175B", "52B", "175B"]
+    names = ["text-<engine>-001", "Cohere-command", "OPT"]
+    classes = ["text-<engine>-001", "Cohere-command", "OPT"]
+    sizes = ["Unknown", "52B", "175B"]
     zero_shot_per_model = {}
     zero_shot_per_model_per_template = defaultdict(dict)
     for k in k_shot:
@@ -1242,7 +1436,7 @@ def plot_all_lines(results_path, renormalize_metric=False, use_differences=True)
     ymax = 100.
     if use_differences:
         ymin = -5
-        ymax = 15
+        ymax = 17
     plt.ylim(bottom=ymin, top=ymax)
     plt.xlabel("In-context examples (k)", fontsize=32)
     plt.ylabel("Relative Accuracy (%)", fontsize=32)
@@ -1252,6 +1446,284 @@ def plot_all_lines(results_path, renormalize_metric=False, use_differences=True)
     else:
         plt.title(f"Relative accuracy (w.r.t 0-shot) due to in-context examples.", fontsize=32)
     plt.savefig(os.path.join(results_folder, f"accuracy_v_k.png"))
+
+
+def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
+                  normalize_metric=False, use_differences=False):
+    with open(results_path, "r") as infile:
+        results = json.load(infile)
+
+    results_folder = results_path.split("/")[0]
+    k_shot = [int(k) for k in list(results.keys())]
+    # k_shot = [5]  # TODO: change once all results in
+    unique_groups = set(groups_per_model)
+    model_to_group = {model: group for model, group in zip(models_to_show, groups_per_model)}
+    lines = {}
+    model_classes = []
+    ids_per_class = {}
+    model_ids = []
+    zero_shot_per_model = {}
+    zero_shot_per_model_per_template = defaultdict(dict)
+    for k in k_shot:
+        data = results[str(k)]
+        for model_id in data.keys():
+            model_size, size_id, name = parse_model_id(model_id)
+            if name in models_to_show:
+                group = model_to_group[name]
+                if group not in lines:
+                    lines[group] = {}
+                    lines[group]["mean_line"] = {"x": [], "y": [], "std": []}
+                    lines[group]["name"] = name
+                    lines[group]["size"] = size_id
+            if model_id not in lines:
+                lines[model_id] = {}
+                lines[model_id]["mean_line"] = {"x": [], "y": [], "std": []}
+                lines[model_id]["name"] = name
+                lines[model_id]["size"] = size_id
+            model_ids.append(model_id)
+            model_classes.append(name)
+            if name not in ids_per_class:
+                ids_per_class[name] = {"model_ids": [], "scores": []}
+            mean_accuracy = data[model_id]["mean_accuracy"]
+            if k == 0:
+                zero_shot_per_model[model_id] = mean_accuracy
+            if k == 5:
+                ids_per_class[name]["model_ids"].append(model_id)
+                ids_per_class[name]["scores"].append(mean_accuracy)
+            if normalize_metric:
+                mean_accuracy = renormalize(mean_accuracy)
+            if use_differences:
+                mean_accuracy = mean_accuracy - zero_shot_per_model[model_id]
+            std = data[model_id]["std"]
+            lines[model_id]["mean_line"]["x"].append(k)
+            lines[model_id]["mean_line"]["y"].append(mean_accuracy)
+            lines[model_id]["mean_line"]["std"].append(std)
+            results_per_line = data[model_id]["template_results"]
+            for i, template in enumerate(results_per_line.keys()):
+                if i + 1 not in lines[model_id]:
+                    lines[model_id][i + 1] = {"x": [], "y": []}
+                lines[model_id][i + 1]["x"].append(k)
+                y_result = results_per_line[template]
+                if k == 0:
+                    zero_shot_per_model_per_template[model_id][template] = y_result
+                if not use_differences:
+                    lines[model_id][i + 1]["y"].append(results_per_line[template])
+                else:
+                    lines[model_id][i + 1]["y"].append(
+                        results_per_line[template] - zero_shot_per_model_per_template[model_id][template])
+
+    model_classes = list(set(model_classes))
+
+    best_per_model_class = {}
+    for model_class in model_classes:
+        if model_class in models_to_show:
+            model_ids_class = ids_per_class[model_class]["model_ids"]
+            scores_per_class = ids_per_class[model_class]["scores"]
+            max_score = max(scores_per_class)
+            idx_max = scores_per_class.index(max_score)
+            best_per_model_class[model_class] = model_ids_class[idx_max]
+
+    # add group lines
+    colors = plt.cm.Dark2(np.linspace(0, 1, len(unique_groups)))
+    group_colors = {}
+    mean_per_group_per_k = {group: defaultdict(list) for group in unique_groups}
+    for model_id, line in lines.items():
+        for x, y in zip(line["mean_line"]["x"], line["mean_line"]["y"]):
+            name = line["name"]
+            if name in models_to_show and model_id == best_per_model_class[name]:
+                mean_per_group_per_k[model_to_group[name]][x].append(y)
+    for i, group in enumerate(unique_groups):
+        group_colors[group] = colors[i]
+        for k in k_shot:
+            group_mean = np.mean(mean_per_group_per_k[group][k])
+            group_std = np.std(mean_per_group_per_k[group][k])
+            lines[group]["mean_line"]["x"].append(k)
+            lines[group]["mean_line"]["y"].append(group_mean)
+            lines[group]["mean_line"]["std"].append(group_std)
+            lines[group]["name"] = group
+            lines[group]["size"] = "None"
+
+    linewidth = 3
+    markersize = 10
+    # Mean accuracy plot per model of accuracy v. k
+    legend_d = {}
+    legend_lines, legend_labels = [], []
+    plt.figure(figsize=(16, 14), dpi=200)
+    for i, model_class in enumerate(list(model_classes)):
+        if model_class not in models_to_show:
+            continue
+        color = MODEL_COLORS[model_class]
+        model_id = best_per_model_class[model_class]
+        name = lines[model_id]["name"]
+        size = lines[model_id]["size"]
+        if name == "InstructGPT":
+            zorder = 10
+        else:
+            zorder = None
+        if name == "Cohere":
+            zorder = 15
+        line = plt.errorbar(lines[model_id]["mean_line"]["x"], lines[model_id]["mean_line"]["y"],
+                            yerr=lines[model_id]["mean_line"]["std"], color=color, zorder=zorder,
+                            label=f"{lines[model_id]['name']}-{size}", marker="o", linestyle=LINESTYLE_GROUPING[name],
+                            markersize=markersize, linewidth=linewidth)
+        if "<engine>" in name:
+            label = name.replace("<engine>", size)
+            label += "-unknown"
+        else:
+            label = f"{name}-{size}"
+        legend_lines.append(line)
+        legend_labels.append(label)
+        if name not in legend_d:
+            legend_d[f"{name}"] = {}
+        legend_d[f"{name}"]["line"] = line
+        legend_d[f"{name}"]["label"] = label
+    if not normalize_metric and not use_differences:
+        randomline = plt.hlines(y=50.0, xmin=k_shot[0], xmax=k_shot[-1], label="Random chance", linestyles="solid", color="red",
+                                linewidth=linewidth)
+    if not normalize_metric:
+        legend_lines.append(randomline)
+        legend_labels.append(f"Random chance")
+        legend_d["Random chance"] = {}
+        legend_d["Random chance"]["line"] = randomline
+        legend_d["Random chance"]["label"] = f"Random chance"
+    ordered_legend_lines = [legend_d[line_n]["line"] for line_n in label_order]
+    ordered_legend_labels = [legend_d[line_n]["label"] for line_n in label_order]
+    plt.legend(ordered_legend_lines, ordered_legend_labels, fontsize=23, loc="lower center", ncol=3)
+    plt.xticks(k_shot, k_shot, fontsize=28)
+    plt.yticks(fontsize=28)  # Set text labels.
+    ymin = 0.
+    ymax = 100.
+    if use_differences:
+        ymin = -5
+        ymax = 17
+    plt.ylim(bottom=ymin, top=ymax)
+    plt.xlabel("In-context examples (k)", fontsize=32)
+    plt.ylabel("Accuracy (%)", fontsize=32)
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
+    if not use_differences:
+        plt.title(f"The accuracy versus number of in-context examples (k)\nfor the best of each model class", fontsize=32)
+    else:
+        plt.title(f"Relative accuracy (w.r.t 0-shot) due to in-context examples.", fontsize=32)
+    plt.savefig(os.path.join(results_folder, f"accuracy_v_k_all.png"))
+
+    # Grouped per model class of accuracy v. k
+    linewidth = 2
+    markersize = 10
+    marker_style_per_group = {
+        "Example IT": "+",
+        "Benchmark IT": "x",
+        "Dialogue FT": "v",
+        "Base": "o"
+    }
+    legend_d = {}
+    legend_lines, legend_labels = [], []
+    # plt.figure(figsize=(16, 14), dpi=200)
+    fig = plt.figure(figsize=(16, 14), dpi=200)
+    ax = fig.add_subplot(111)
+    k_to_str = {0: "Zero",
+                1: "One",
+                5: "Five",
+                10: "Ten",
+                15: "Fifteen",
+                30: "Thirty"}
+    width = 0.15  # the width of the bars
+    multiplier = -1.5
+    ordered_groups = ["Example IT", "Base", "Benchmark IT", "Dialogue FT"]
+    multipliers = [-1.5, -0.5, 0.5, 1.5]
+    for i, model_class in enumerate(list(model_classes)):
+        if model_class not in models_to_show:
+            continue
+        color = MODEL_COLORS[model_class]
+        model_id = best_per_model_class[model_class]
+        name = lines[model_id]["name"]
+        size = lines[model_id]["size"]
+        group = model_to_group[name]
+        group_idx = ordered_groups.index(group)
+        if name == "InstructGPT":
+            zorder = 10
+        else:
+            zorder = None
+        if name == "Cohere":
+            zorder = 15
+        x = [f"{k_to_str[k]}" for k in lines[model_id]["mean_line"]["x"]]
+        x = np.arange(len(k_shot))
+        multiplier = multipliers[group_idx]
+        offset = width * multiplier
+        line = ax.scatter(x + offset,
+                          lines[model_id]["mean_line"]["y"],
+                          # s=np.array(lines[model_id]["mean_line"]["std"]) * 100,
+                          s=100,
+                          c=color, zorder=zorder,
+                          label=f"{lines[model_id]['name']}-{size}", marker=marker_style_per_group[group],
+                          # linestyle=LINESTYLE_GROUPING[name],
+                          # markersize=markersize,
+                          # linewidth=linewidth
+                          )
+        if "<engine>" in name:
+            label = name.replace("<engine>", size)
+            label += "-unknown"
+        else:
+            label = f"{name}-{size}"
+        legend_lines.append(line)
+        legend_labels.append(label)
+        if name not in legend_d:
+            legend_d[f"{name}"] = {}
+        legend_d[f"{name}"]["line"] = line
+        legend_d[f"{name}"]["label"] = label
+
+    width = 0.15  # the width of the bars
+    multiplier = -1.5
+    x = np.arange(len(k_shot))
+    all_rects = {}
+    for i, group in enumerate(ordered_groups):
+        color = group_colors[group]
+        offset = width * multiplier
+        # x = np.array(lines[group]["mean_line"]["x"])
+        y = lines[group]["mean_line"]["y"]
+        rects = ax.bar(x + offset, y,
+                       width,
+                       label=group, color=color, alpha=0.55)
+        # ax.bar_label(rects, padding=3)
+        multiplier += 1
+        all_rects[group] = rects
+
+    if not normalize_metric and not use_differences:
+        randomline = ax.hlines(y=50.0, xmin=x[0], xmax=x[-1], label="Random chance", linestyles="solid",
+                               color="red",
+                               linewidth=linewidth)
+    if not normalize_metric:
+        legend_lines.append(randomline)
+        legend_labels.append(f"Random chance")
+        legend_d["Random chance"] = {}
+        legend_d["Random chance"]["line"] = randomline
+        legend_d["Random chance"]["label"] = f"Random chance"
+    ordered_legend_lines = [legend_d[line_n]["line"] for line_n in label_order]
+    ordered_legend_labels = [legend_d[line_n]["label"] for line_n in label_order]
+    ordered_rects = [all_rects[label] for label in ordered_groups]
+    ordered_legend_lines = ordered_legend_lines
+    ordered_legend_labels = ordered_legend_labels
+    legend_one = plt.legend(ordered_legend_lines, ordered_legend_labels, fontsize=23, loc="lower center", ncol=3)
+    ax = plt.gca().add_artist(legend_one)
+    plt.legend(ordered_rects, ordered_groups, fontsize=23, loc="upper center", ncol=4)
+    plt.xticks(np.arange(len(k_shot)), [k_to_str[k] for k in k_shot], fontsize=28)
+    plt.yticks(fontsize=28)  # Set text labels.
+    ymin = 0.
+    ymax = 100.
+    if use_differences:
+        ymin = -5
+        ymax = 17
+    plt.ylim(bottom=ymin, top=ymax)
+    plt.xlabel("In-context examples (k)", fontsize=32)
+    plt.ylabel("Accuracy (%)", fontsize=32)
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
+    if not use_differences:
+        plt.title(f"The accuracy versus number of in-context examples (k)\nwith bars showing group means",
+                  fontsize=32)
+    else:
+        plt.title(f"Relative accuracy (w.r.t 0-shot) due to in-context examples.", fontsize=32)
+    plt.savefig(os.path.join(results_folder, f"accuracy_v_k_all_scatter.png"))
 
 
 def get_human_performance_all_examples(file_path: str):
@@ -1297,8 +1769,8 @@ def get_all_human_performance(human_eval_files):
     return all_examples, all_correct_counts
 
 
-def extract_counter(results):
-    k_shot = [0, 1, 5, 10, 15, 30]
+def extract_counter(results, k_shot):
+    # k_shot = [0]
     # Extract and group the accuracies per prompt template.
     # Get the average accuracy overall, grouping together different models and k
     template_scores_overall = defaultdict(list)
@@ -1312,14 +1784,20 @@ def extract_counter(results):
     )
     example_results = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
     models_sorted_by_size = defaultdict(list)
+    model_size_ids_sorted = defaultdict(list)
     model_sizes = defaultdict(list)
+    model_size_ids = defaultdict(list)
     model_to_group = {}
     for k in k_shot:
         for model, model_results in results[str(k)].items():
+            if "nightly" in model:
+                continue
             if k == 0:
-                model_size, _, name = parse_model_id(model)
+                model_size, size_id, name = parse_model_id(model)
                 models_sorted_by_size[name].append(model)
+                model_size_ids_sorted[name].append(size_id)
                 model_sizes[name].append(model_size)
+                model_size_ids[name].append(size_id)
                 model_to_group[model] = name
             accuracy_per_template = model_results["template_results"]
             # template_rating = model_results["template_rating"]
@@ -1349,11 +1827,17 @@ def extract_counter(results):
                         zip(model_sizes[model], models_sorted_by_size[model])
                     )
                 ]
+                model_size_ids_sorted[model] = [
+                    x
+                    for _, x in sorted(
+                        zip(model_sizes[model], model_size_ids_sorted[model])
+                    )
+                ]
                 model_sizes[model] = sorted(model_sizes[model])
     examples_correct_count = Counter()
     example_data = {}
     counter_per_model_per_k = defaultdict(lambda: defaultdict(Counter))
-    counter_per_model_zero_shot_per_template = defaultdict(lambda: defaultdict(Counter))
+    counter_per_model_per_k_shot_per_template = defaultdict(lambda: defaultdict(lambda: defaultdict(Counter)))
     for model, examples_per_model in example_results.items():
         for k, examples_per_model_per_k in examples_per_model.items():
             for template, examples in examples_per_model_per_k.items():
@@ -1373,16 +1857,16 @@ def extract_counter(results):
                     if example_correct:
                         examples_correct_count[example_id] += 1
                         counter_per_model_per_k[model][k][example_id] += 1
-                        if k == 0:
-                            counter_per_model_zero_shot_per_template[model][template][example_id] += 1
+                        counter_per_model_per_k_shot_per_template[model][k][template][example_id] += 1
                     else:
                         counter_per_model_per_k[model][k][example_id] += 0
-                        if k == 0:
-                            counter_per_model_zero_shot_per_template[model][template][example_id] += 0
-    return counter_per_model_per_k, counter_per_model_zero_shot_per_template, example_data, models_sorted_by_size, model_sizes
+                        counter_per_model_per_k_shot_per_template[model][k][template][example_id] += 0
+    return counter_per_model_per_k, counter_per_model_per_k_shot_per_template, example_data, models_sorted_by_size, model_sizes, model_size_ids_sorted
 
 
-def type_label_analysis():
+def type_label_analysis(project_folder: str, models_to_show=["Cohere", "text-<engine>-001"],
+                        k_shot=[0, 1, 5, 10, 15, 30]):
+    # assert len(models_to_show) == 2, "Only implemented for 2 models to show"
     file = "data/type_labels.csv"
     with open(file, "r") as infile:
         file_reader = csv.reader(infile)
@@ -1401,7 +1885,6 @@ def type_label_analysis():
                 }
                 examples_with_type_labels[row[0].replace("\r", "")] = example
 
-    project_folder = "error_analysis"
     results_file = os.path.join(project_folder, "all_results.json")
     with open(results_file, "r") as infile:
         results = json.load(infile)
@@ -1416,12 +1899,13 @@ def type_label_analysis():
 
     (
         counter_per_model_per_k,
-        counter_per_model_zero_shot_per_template,
+        counter_per_model_per_k_shot_per_template,
         example_data,
         models_sorted_by_size,
         model_sizes,
-    ) = extract_counter(results)
-    k_shot = [0, 1, 5, 10, 15, 30]
+        size_ids_sorted_by_size
+    ) = extract_counter(results, k_shot)
+
     # Get the example IDs for the labeled examples
     examples_with_type_labels_id = {}
     found_labels = 0
@@ -1443,8 +1927,9 @@ def type_label_analysis():
 
     # Let's select a view models to show this for, change below to view different models
     print(f"Options of model groups to show: {list(models_sorted_by_size.keys())}")
-    models_to_show = ["Cohere", "InstructGPT-3"]
-    line_style_group = {"Cohere": "solid", "InstructGPT-3": "dashed"}
+    # models_to_show
+    # models_to_show = ["chatgpt"]
+    line_style_group = {models_to_show[0]: "solid", models_to_show[1]: "dashed"}
     for model in models_to_show:
         print(f"Will show {model}")
         print(f"-- with sizes: {models_sorted_by_size[model]}")
@@ -1461,23 +1946,40 @@ def type_label_analysis():
     num_labels = len(look_at_labels)
 
     lines = {}
+    results_table = {"Model": [], "Mean": []}
+    for label_type in look_at_labels:
+        results_table[label_type] = []
+    tables_per_k = {k: copy.deepcopy(results_table) for k in k_shot}
+    all_type_label_results_d = {}
+
     for group_name in models_to_show:
-        lines[group_name] = {
-            label: {"x": [], "y": [], "y_absolute": [], "std": []} for label in look_at_labels
-        }
-        lines[group_name]["Mean"] = {"x": [], "y": [], "y_absolute": [], "std": []}
-        # = {"x": [], "y": [], "std": []}
-        sorted_models = models_sorted_by_size[group_name]
-        sorted_sizes = model_sizes[group_name]
-        print(f"- Model group {group_name}")
-        for i, model in enumerate(sorted_models):
-            print(f"----- Model {model}")
-            for k in k_shot:
-                if k != 0:
-                    continue
-                print(f"---------------- {k}-shot")
+        lines[group_name] = {}
+        all_type_label_results_d[group_name] = {}
+        for k in k_shot:
+            all_type_label_results_d[group_name][k] = {}
+            lines[group_name][k] = {
+                label: {"x": [], "y": [], "y_absolute": [], "std": []} for label in look_at_labels
+            }
+            lines[group_name][k]["Mean"] = {"x": [], "y": [], "y_absolute": [], "std": []}
+            print(f"---------------- {k}-shot")
+            # lines[group_name]["Mean"] = {}
+            # = {"x": [], "y": [], "std": []}
+            sorted_models = models_sorted_by_size[group_name]
+            sorted_sizes = model_sizes[group_name]
+            sorted_size_ids = size_ids_sorted_by_size[group_name]
+            print(f"- Model group {group_name}")
+            for i, model in enumerate(sorted_models):
+                print(f"----- Model {model}")
+                if "<engine>" in group_name:
+                    size_id = "unknown"
+                    table_group_name = group_name.replace("<engine>", sorted_size_ids[i])
+                else:
+                    size_id = sorted_size_ids[i]
+                    table_group_name = group_name
+                all_type_label_results_d[group_name][k][size_id] = {}
+                tables_per_k[k]["Model"].append(f"{table_group_name}-{size_id}")
                 correct_per_type = Counter()
-                correct_per_template_per_type = defaultdict(Counter)
+                correct_per_k_per_template_per_type = defaultdict(lambda: defaultdict(Counter))
                 for ex_id, example_labeled in examples_with_type_labels_id.items():
                     example_correct_count_zero_shot = counter_per_model_per_k[model][k][
                         ex_id
@@ -1486,9 +1988,9 @@ def type_label_analysis():
                         example_correct_count_zero_shot / 6
                     )
                     for temp_idx in range(6):
-                        example_correct_count_zero_shot_template = counter_per_model_zero_shot_per_template[model][f"prompt_template_{temp_idx + 1}"][ex_id]
-                        correct_per_template_per_type[temp_idx][example_labeled["label"]] += example_correct_count_zero_shot_template
-                        correct_per_template_per_type[temp_idx]["Mean"] += example_correct_count_zero_shot_template
+                        example_correct_count_k_shot_template = counter_per_model_per_k_shot_per_template[model][k][f"prompt_template_{temp_idx + 1}"][ex_id]
+                        correct_per_k_per_template_per_type[k][temp_idx][example_labeled["label"]] += example_correct_count_k_shot_template
+                        correct_per_k_per_template_per_type[k][temp_idx]["Mean"] += example_correct_count_k_shot_template
                     correct_per_type["Mean"] += example_correct_count_zero_shot / 6
                 mean_correct = correct_per_type["Mean"]
                 percentage_correct_mean = mean_correct / label_dist["Mean"] * 100
@@ -1496,7 +1998,7 @@ def type_label_analysis():
                     type_correct = correct_per_type[label_type]
                     perc_per_template = []
                     for temp_idx in range(6):
-                        type_correct_per_template = correct_per_template_per_type[temp_idx][label_type]
+                        type_correct_per_template = correct_per_k_per_template_per_type[k][temp_idx][label_type]
                         percentage_correct_template_label = (
                             type_correct_per_template / label_dist[label_type] * 100
                         )
@@ -1505,17 +2007,22 @@ def type_label_analysis():
                         type_correct / label_dist[label_type] * 100
                     )
                     std_correct_label = np.std(perc_per_template)
-                    lines[group_name][label_type]["y"].append(
+                    lines[group_name][k][label_type]["y"].append(
                         percentage_correct_label - percentage_correct_mean
                     )
-                    lines[group_name][label_type]["y_absolute"].append(
+                    lines[group_name][k][label_type]["y_absolute"].append(
                         percentage_correct_label
                     )
-                    lines[group_name][label_type]["x"].append(sorted_sizes[i])
-                    lines[group_name][label_type]["std"].append(std_correct_label)
-                    lines[group_name]["Mean"]["x"].append(sorted_sizes[i])
-                    lines[group_name]["Mean"]["y_absolute"].append(percentage_correct_mean)
-                    lines[group_name]["Mean"]["std"].append(0.)
+                    lines[group_name][k][label_type]["x"].append(sorted_sizes[i])
+                    lines[group_name][k][label_type]["std"].append(std_correct_label)
+                    lines[group_name][k]["Mean"]["x"].append(sorted_sizes[i])
+                    lines[group_name][k]["Mean"]["y_absolute"].append(percentage_correct_mean)
+                    lines[group_name][k]["Mean"]["std"].append(0.)
+                    tables_per_k[k][label_type].append(f"{percentage_correct_label:.2f} +/- {std_correct_label:.2f}")
+                    all_type_label_results_d[group_name][k][size_id][label_type] = {
+                        "mean": percentage_correct_label,
+                        "std": std_correct_label
+                    }
                     print(
                         f"{label_type} absolute label mean: {percentage_correct_label}"
                     )
@@ -1523,6 +2030,7 @@ def type_label_analysis():
                         f"{label_type} absolute label std: {std_correct_label}"
                     )
                     print(f"{label_type} absolute mean: {percentage_correct_mean}")
+                tables_per_k[k]["Mean"].append(f"{percentage_correct_mean:.2f}")
 
     print(f"- Model group humans")
     correct_per_type_humans = Counter()
@@ -1544,6 +2052,11 @@ def type_label_analysis():
         correct_per_type_humans["Mean"] += example_correct_count_zero_shot / 5
     mean_correct_humans = correct_per_type_humans["Mean"]
     percentage_correct_mean_humans = mean_correct_humans / label_dist["Mean"] * 100
+    all_type_label_results_d["Humans"] = {}
+    for k in k_shot:
+        tables_per_k[k]["Model"].append("Humans")
+        tables_per_k[k]["Mean"].append(f"{percentage_correct_mean_humans:.2f}")
+        all_type_label_results_d["Humans"]["Mean"] = percentage_correct_mean_humans
     for j, label_type in enumerate(look_at_labels):
         type_correct = correct_per_type_humans[label_type]
         percentage_correct_label = type_correct / label_dist[label_type] * 100
@@ -1551,128 +2064,157 @@ def type_label_analysis():
         # lines[group_name][label_type]["x"].append(sorted_sizes[i])
         print(f"{label_type} absolute label mean: {percentage_correct_label}")
         print(f"{label_type} absolute mean: {percentage_correct_mean_humans}")
+        all_type_label_results_d["Humans"][label_type] = percentage_correct_label
+        for k in k_shot:
+            tables_per_k[k][label_type].append(f"{percentage_correct_label:.2f}")
+
+    with open(f"{project_folder}/all_type_label_results.json", "w") as outfile:
+        json.dump(all_type_label_results_d, outfile, indent=4)
+
+    labels_first_table = look_at_labels[:3]
+    labels_second_table = look_at_labels[3:]
+    for k in k_shot:
+        first_table = {"Model": tables_per_k[k]["Model"], "Mean": tables_per_k[k]["Mean"], **{label: tables_per_k[k][label] for label in labels_first_table}}
+        second_table = {"Model": tables_per_k[k]["Model"], "Mean": tables_per_k[k]["Mean"],
+                       **{label: tables_per_k[k][label] for label in labels_second_table}}
+        df_1 = pd.DataFrame(first_table)
+        df_2 = pd.DataFrame(second_table)
+        print(df_1.to_latex(index=False,
+                          position="ht",
+                          label=f"type-label-analysis-{k}-shot-1",
+                          caption=f"Accuracy per label for model group HF FT for {k}-shot evaluation.",
+                          bold_rows=True,
+                          column_format="l" + "c" * (len(labels_first_table) + 1)))
+        print(df_2.to_latex(index=False,
+                            position="ht",
+                            label=f"type-label-analysis-{k}-shot-2",
+                            caption=f"Accuracy per label for model group HF FT for {k}-shot evaluation.",
+                            bold_rows=True,
+                            column_format="l" + "c" * (len(labels_second_table) + 1)))
 
     linewidth = 3
     markersize = 10
 
     # Relative plot
-    colors = plt.cm.Dark2(np.linspace(0, 1, num_labels))
-    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
-    legend_lines, legend_labels = [], []
-    x_min = float("inf")
-    x_max = 0
-    saved_colors = {}
-    for i, group_name in enumerate(models_to_show):
-        # plt.figure(figsize=(16, 14), dpi=200)
-        for j, (line_key, line_data) in enumerate(lines[group_name].items()):
-            if line_key == "Mean":
-                # Don't plot mean line for relative plot (mean line is y = 0)
-                continue
-            line = ax[i].plot(
-                line_data["x"],
-                line_data["y"],
-                label=f"Prompt template {line_key}",
-                marker="o",
-                color=colors[j],
-                linestyle="solid",
-                markersize=markersize,
-                linewidth=linewidth,
-            )
-            saved_colors[line_key] = colors[j]
-            if min(line_data["x"]) < x_min:
-                x_min = min(line_data["x"])
-            if max(line_data["x"]) > x_max:
-                x_max = max(line_data["x"])
-            if i == 0:
-                legend_lines.append(line)
-                legend_labels.append(f"{line_key}")
-        plt.xscale("log")
-        ax[i].xaxis.set_tick_params(labelsize=24)
-        ax[i].yaxis.set_tick_params(labelsize=24)
-        ax[i].title.set_text(f"{group_name}")
-        ax[i].title.set_size(24)
-        if i == 0:
-            ax[i].set_ylabel("Relative Accuracy (%)", fontsize=28)
-        ax[i].set_xlabel("Model Parameters (Non-Embedding)", fontsize=28)
-    for i in range(len(ax)):
-        randomline = ax[i].hlines(
-            y=0.0,
-            xmin=x_min,
-            xmax=x_max,
-            label="Mean accuracy",
-            linestyles="dotted",
-            color="black",
-            linewidth=linewidth,
-        )
-    legend_lines.append(randomline)
-    legend_labels.append("All types")
-    ax[0].legend(legend_lines, legend_labels, fontsize=20, loc="lower left")
-    plt.suptitle(
-        f"Relative accuracy (w.r.t. mean) for each type of implicature.", fontsize=28
-    )
-    plt.subplots_adjust(top=0.85)
-    plt.tight_layout()
-    plt.savefig(f"error_analysis/type_labels_plot.jpg")
-
-    # Absolute plot
-    saved_colors["Mean"] = "black"
-    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
-    legend_lines, legend_labels = [], []
-    x_min = float("inf")
-    x_max = 0
-    for i, group_name in enumerate(models_to_show):
-        # plt.figure(figsize=(16, 14), dpi=200)
-        for j, (line_key, line_data) in enumerate(lines[group_name].items()):
-            if line_key not in ["Particularised", "Generalised", "Other", "Mean"]:
-                continue
-            line = ax[i].errorbar(
-                line_data["x"],
-                line_data["y_absolute"],
-                yerr=line_data["std"],
-                label=f"Prompt template {line_key}",
-                marker="o",
-                color=saved_colors[line_key],
-                linestyle="solid" if line_key != "Mean" else "dotted",
-                markersize=markersize,
-                linewidth=linewidth,
-            )
-            if min(line_data["x"]) < x_min:
-                x_min = min(line_data["x"])
-            if max(line_data["x"]) > x_max:
-                x_max = max(line_data["x"])
-            if i == 0:
-                legend_lines.append(line)
+    for k in k_shot:
+        colors = plt.cm.Dark2(np.linspace(0, 1, num_labels))
+        fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
+        legend_lines, legend_labels = [], []
+        x_min = float("inf")
+        x_max = 0
+        saved_colors = {}
+        for i, group_name in enumerate(models_to_show[:2]):
+            # plt.figure(figsize=(16, 14), dpi=200)
+            for j, (line_key, line_data) in enumerate(lines[group_name][k].items()):
                 if line_key == "Mean":
-                    line_key = "All types"
-                legend_labels.append(f"{line_key}")
-        plt.xscale("log")
-        ax[i].xaxis.set_tick_params(labelsize=24)
-        ax[i].yaxis.set_tick_params(labelsize=24)
-        ax[i].title.set_text(f"{group_name}")
-        ax[i].title.set_size(24)
-        ax[i].set_ylim(0., 100.)
-        if i == 0:
-            ax[i].set_ylabel("Accuracy (%)", fontsize=28)
-        ax[i].set_xlabel("Model Parameters (Non-Embedding)", fontsize=28)
-    for i in range(len(ax)):
-        randomline = ax[i].hlines(
-            y=50.0,
-            xmin=x_min,
-            xmax=x_max,
-            label="Random chance",
-            linestyles="dotted",
-            color="red",
-            linewidth=linewidth,
+                    # Don't plot mean line for relative plot (mean line is y = 0)
+                    continue
+                line, = ax[i].plot(
+                    line_data["x"],
+                    line_data["y"],
+                    label=f"Prompt template {line_key}",
+                    marker="o",
+                    color=colors[j],
+                    linestyle="solid",
+                    markersize=markersize,
+                    linewidth=linewidth,
+                )
+                saved_colors[line_key] = colors[j]
+                if min(line_data["x"]) < x_min:
+                    x_min = min(line_data["x"])
+                if max(line_data["x"]) > x_max:
+                    x_max = max(line_data["x"])
+                if i == 0:
+                    legend_lines.append(line)
+                    legend_labels.append(f"{line_key}")
+            plt.xscale("log")
+            ax[i].xaxis.set_tick_params(labelsize=24)
+            ax[i].yaxis.set_tick_params(labelsize=24)
+            ax[i].title.set_text(f"{group_name}")
+            ax[i].title.set_size(24)
+            if i == 0:
+                ax[i].set_ylabel("Relative Accuracy (%)", fontsize=28)
+            ax[i].set_xlabel("Model Parameters (Non-Embedding)", fontsize=28)
+        for i in range(len(ax)):
+            randomline = ax[i].hlines(
+                y=0.0,
+                xmin=x_min,
+                xmax=x_max,
+                label="Mean accuracy",
+                linestyles="dotted",
+                color="black",
+                linewidth=linewidth,
+            )
+        legend_lines.append(randomline)
+        legend_labels.append("All types")
+        ax[0].legend(legend_lines, legend_labels, fontsize=20, loc="lower left")
+        plt.suptitle(
+            f"Relative accuracy (w.r.t. mean) for each type of implicature.", fontsize=28
         )
-    legend_lines.append(randomline)
-    legend_labels.append("Random chance")
-    ax[0].legend(legend_lines, legend_labels, fontsize=20, loc="lower left")
-    plt.suptitle(
-        f"Accuracy for each type of implicature.", fontsize=28
-    )
-    plt.subplots_adjust(top=0.85)
-    plt.tight_layout()
-    plt.savefig(f"error_analysis/type_labels_plot_absolute.jpg")
+        plt.subplots_adjust(top=0.85)
+        plt.tight_layout()
+        plt.savefig(f"{project_folder}/type_labels_plot_{k}-shot.jpg")
+
+    for k in k_shot:
+        # Absolute plot
+        saved_colors["Mean"] = "black"
+        fig, ax = plt.subplots(1, 2, sharex=True, sharey=True, figsize=(20, 10), dpi=200)
+        legend_lines, legend_labels = [], []
+        x_min = float("inf")
+        x_max = 0
+        for i, group_name in enumerate(models_to_show[:2]):
+            # plt.figure(figsize=(16, 14), dpi=200)
+            for j, (line_key, line_data) in enumerate(lines[group_name][k].items()):
+                if line_key not in ["Particularised", "Generalised", "Other", "Mean"]:
+                    continue
+                line = ax[i].errorbar(
+                    line_data["x"],
+                    line_data["y_absolute"],
+                    yerr=line_data["std"],
+                    label=f"Prompt template {line_key}",
+                    marker="o",
+                    color=saved_colors[line_key],
+                    linestyle="solid" if line_key != "Mean" else "dotted",
+                    markersize=markersize,
+                    linewidth=linewidth,
+                )
+                if min(line_data["x"]) < x_min:
+                    x_min = min(line_data["x"])
+                if max(line_data["x"]) > x_max:
+                    x_max = max(line_data["x"])
+                if i == 0:
+                    legend_lines.append(line)
+                    if line_key == "Mean":
+                        line_key = "All types"
+                    legend_labels.append(f"{line_key}")
+            plt.xscale("log")
+            ax[i].xaxis.set_tick_params(labelsize=24)
+            ax[i].yaxis.set_tick_params(labelsize=24)
+            ax[i].title.set_text(f"{group_name}")
+            ax[i].title.set_size(24)
+            ax[i].set_ylim(0., 100.)
+            if i == 0:
+                ax[i].set_ylabel("Accuracy (%)", fontsize=28)
+            ax[i].set_xlabel("Model Parameters (Non-Embedding)", fontsize=28)
+        for i in range(len(ax)):
+            randomline = ax[i].hlines(
+                y=50.0,
+                xmin=x_min,
+                xmax=x_max,
+                label="Random chance",
+                linestyles="solid",
+                color="red",
+                linewidth=linewidth,
+            )
+        legend_lines.append(randomline)
+        legend_labels.append("Random chance")
+        ax[0].legend(legend_lines, legend_labels, fontsize=20, loc="lower left")
+        plt.suptitle(
+            f"Accuracy for each type of implicature.", fontsize=28
+        )
+        plt.subplots_adjust(top=0.85)
+        plt.tight_layout()
+        plt.savefig(f"{project_folder}/type_labels_plot_absolute_{k}-shot.jpg")
 
     print(f"Found {found_labels} non-other labeled examples")
     print(f"Distributed as: {label_dist}")
@@ -1892,7 +2434,7 @@ def get_type_labels(examples):
                     "label": row[3],
                     "factual": row[4],
                 }
-                examples_with_type_labels[row[0].replace("\r", "")] = example
+                examples_with_type_labels[row[0].replace("\r", "").strip()] = example
 
     # Get the example IDs for the labeled examples
     examples_with_type_labels_id = {}
@@ -1900,10 +2442,10 @@ def get_type_labels(examples):
     label_dist = Counter()
 
     for ex_id, example in enumerate(examples):
-        key = example[0].replace("\r", "")
+        key = example[0].replace("\r", "").strip()
         if key in examples_with_type_labels:
             example_labeled = examples_with_type_labels[
-                example[0].replace("\r", "")
+                example[0].replace("\r", "").strip()
             ]
             found_labels += 1
         else:
@@ -2021,7 +2563,7 @@ def eval_chatgpt_files(folder, shuffled, templated):
                             if dev_example_idx is not None:
                                 current_answer = line
                                 continue
-                            answer = current_answer.split(",")[-1].lower().strip("\n").strip(".").strip('"')[-3:].strip()
+                            answer = current_answer.split(",")[-1].lower().replace("\n", "").replace(".", "").replace('"', "")[-3:].strip()
                             if not answer:
                                 continue
                             file_full_chatgpt_answers.append(current_answer)
@@ -2029,7 +2571,7 @@ def eval_chatgpt_files(folder, shuffled, templated):
                             file_chatgpt_answers.append(answer)
                             current_answer = line
                 # Process last answer as well
-                answer = current_answer.split(",")[-1].lower().strip("\n").strip(".").strip('"')[-3:].strip()
+                answer = current_answer.split(",")[-1].lower().replace("\n", "").replace(".", "").replace('"', "")[-3:].strip()
                 if answer:
                     assert answer in ["yes", "no"], f"Answer is {answer}"
                     file_chatgpt_answers.append(answer)
@@ -2045,6 +2587,8 @@ def eval_chatgpt_files(folder, shuffled, templated):
             full_chatgpt_answers.extend(file_full_chatgpt_answers)
             type_labels.extend(file_type_labels)
             file_counter += 1
+            print(file)
+            print(f"File accuracy: {(np.array(file_chatgpt_answers) == np.array(file_correct_answers)).sum() / len(file_correct_answers)}")
     folder_accuracy = (np.array(chatgpt_answers) == np.array(correct_answers)).sum() / len(correct_answers)
     print(f"Evaluated folder {folder}")
     print(f"Num examples answered: {len(correct_answers)}")
@@ -2069,11 +2613,540 @@ def eval_chatgpt_files(folder, shuffled, templated):
                 if example_correct:
                     labeled_accuracy[type_label.lower()]["correct"] += 1
                 labeled_accuracy[type_label.lower()]["total"] += 1
+            if type_label.lower() == "particularised":
+                print(chatgpt_answer)
             writer.writerow(current_row)
     for type_label, type_results in labeled_accuracy.items():
         print("---- labelled accuracy ----")
         print(f"Accuracy label {type_label} is {(type_results['correct'] / type_results['total']) * 100}")
     print(f"Wrote results to {os.path.join(folder, f'{deepest_folder}.csv')}")
+
+
+def find_example_idx_bb(examples, big_bench_example):
+    regex = r"""
+            [-,.;@#?!&$'’…"]+  # Accept one or more copies of punctuation
+            \ *           # plus zero or more copies of a space,
+            """
+    for i, test_example in enumerate(examples):
+        utterance_no_punct = re.sub(regex, ' ', test_example[0], flags=re.VERBOSE).lower().strip("\n").replace(" ", "")
+        response_no_punct = re.sub(regex, ' ', test_example[1], flags=re.VERBOSE).lower().strip("\n").replace(" ", "")
+        found_example_no_punct = re.sub(regex, ' ', big_bench_example, flags=re.VERBOSE)
+        utterance_big_bench, response_big_bench = found_example_no_punct.split("Speaker 2:")
+        utterance_big_bench_cleaned = utterance_big_bench.replace("Speaker 1: ", "").lower().strip("\n").replace(" ", "")
+        response_big_bench_cleaned = response_big_bench.lower().strip("\n").replace(" ", "")
+        utterance_edit_distance = editdistance.eval(utterance_no_punct, utterance_big_bench_cleaned)
+        response_edit_distance = editdistance.eval(response_no_punct, response_big_bench_cleaned)
+        if utterance_edit_distance + response_edit_distance < 5:
+            return i
+
+
+def compare_BIG_bench_task():
+
+    # Get own data
+    test_csv_file = "data/test_conversational_implicatures.csv"
+    column_names, test_examples = read_csv_file(test_csv_file)
+    dev_csv_file = "data/dev_conversational_implicatures.csv"
+    dev_column_names, dev_examples = read_csv_file(dev_csv_file)
+
+    type_labeled_examples = get_type_labels(test_examples)
+
+    human_eval_files = [
+        "data/human_eval/human_eval - 1-150.csv",
+        "data/human_eval/human_eval - 151-300.csv",
+        "data/human_eval/human_eval - 301-450.csv",
+        "data/human_eval/human_eval - 451-600.csv",
+    ]
+    human_examples, human_counts = get_all_human_performance(human_eval_files)
+
+    project_folder = "error_analysis"
+    results_file = os.path.join(project_folder, "all_results.json")
+    with open(results_file, "r") as infile:
+        results = json.load(infile)
+    (
+        counter_per_model_per_k,
+        counter_per_model_zero_shot_per_template,
+        example_data,
+        models_sorted_by_size,
+        model_sizes,
+        size_ids_sorted_by_size
+    ) = extract_counter(results, k_shot=[0, 1, 5, 10, 15, 30])
+
+    # Get BIG bench data
+    file = "data/BIG_bench_task.json"
+    with open(file, "r") as infile:
+        big_bench_data = json.load(infile)
+
+    human_performance_big_bench = 0
+    davinci_performance_big_bench = 0
+    big_bench_count = 0
+    found_dev_examples = 0
+    not_found_examples = 0
+    example_idxs_found = []
+    for example in big_bench_data["examples"]:
+        dev_example_idx = find_example_idx_bb(dev_examples, example["input"])
+        if dev_example_idx is not None:
+            found_dev_examples += 1
+            continue
+        example_idx = find_example_idx_bb(test_examples, example["input"])
+        if example_idx is None:
+            print(f"{example['input']} not found")
+            not_found_examples += 1
+            continue
+        example_idxs_found.append(example_idx)
+        human_performance = (human_counts[example_idx] / 5) * 100.
+        davinci_1_performance = (counter_per_model_per_k["openai-text-davinci-001"][0][f"{example_idx}"] / 6) * 100.
+        matched_big_bench_example = {
+            "example_idx": example_idx,
+            "big_bench_input": example["input"],
+            "original_example": test_examples[example_idx],
+            "human_performance": human_performance,
+            "davinci-001-performance": davinci_1_performance
+        }
+        human_performance_big_bench += human_performance
+        davinci_performance_big_bench += davinci_1_performance
+        big_bench_count += 1
+    print(f"Found {big_bench_count} examples in test data.")
+    print(f"Found {found_dev_examples} dev examples in BIG bench data.")
+    print(f"Could not find {not_found_examples} examples.")
+    print(f"Human performance: {human_performance_big_bench / big_bench_count}")
+    print(f"text-davinci-001 performance: {davinci_performance_big_bench / big_bench_count}")
+
+    ambiguous_human_performance = 0
+    ambiguous_davinci_performance = 0
+    ambiguous_count = 0
+    for i in range(600):
+        if i not in example_idxs_found:
+            human_performance = (human_counts[i] / 5) * 100.
+            davinci_1_performance = (counter_per_model_per_k["openai-text-davinci-001"][0][f"{i}"] / 6) * 100.
+            ambiguous_human_performance += human_performance
+            ambiguous_davinci_performance += davinci_1_performance
+            ambiguous_count += 1
+
+    print(f"Did not find {ambiguous_count} examples in BIG bench data.")
+    print(f"Human performance on these: {ambiguous_human_performance / ambiguous_count}")
+    print(f"Davinci performance on these: {ambiguous_davinci_performance / ambiguous_count}")
+
+
+def print_latex_table(results_path):
+    with open(results_path, "r") as infile:
+        results = json.load(infile)
+    results_folder = results_path.split("/")[0]
+    k_shot = [int(k) for k in list(results.keys())]
+    data_per_model = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    data_per_model_per_template = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    model_classes = defaultdict(int)
+    for k in k_shot:
+        data = results[str(k)]
+        for model_id in data.keys():
+            model_size, size_str, model_class = parse_model_id(model_id)
+            print("------")
+            print(model_class)
+            print(model_size)
+            print(size_str)
+            print("------")
+            if k == 0:
+                model_classes[model_class] += 1
+            data_per_model[model_class][k]["size strs"].append(size_str)
+            data_per_model[model_class][k]["sizes"].append(model_size)
+            data_per_model[model_class][k]["accuracies"].append(data[model_id]["mean_accuracy"])
+            data_per_model[model_class][k]["stds"].append(data[model_id]["std"])
+            for template_str, template_acc in data[model_id]["template_results"].items():
+                sized_model = f"{model_class}-{size_str}"
+                data_per_model_per_template[sized_model][k]["templates"].append(template_str.split("_")[-1])
+                data_per_model_per_template[sized_model][k]["sizes"].append(model_size)
+                data_per_model_per_template[sized_model][k]["accuracies"].append(template_acc)
+
+    # Make table per model
+    for model_class, num_sizes in model_classes.items():
+        # model_table = np.zeros((num_sizes, len(k_shot)))
+        model_table = {}
+        model_tables_per_size = [{"Template": []} for _ in range(num_sizes)]
+        model_sorted_size_strs = []
+        for i, k in enumerate(k_shot):
+            accuracies = data_per_model[model_class][k]["accuracies"]
+            stds = data_per_model[model_class][k]["stds"]
+            sizes = data_per_model[model_class][k]["sizes"]
+            size_strs = data_per_model[model_class][k]["size strs"]
+            sorted_accuracies = [x for _, x in sorted(zip(sizes, accuracies), reverse=False)]
+            sorted_stds = [x for _, x in sorted(zip(sizes, stds), reverse=False)]
+            sorted_sizes = sorted(sizes, reverse=False)
+            sorted_size_strs = [x for _, x in sorted(zip(sizes, size_strs), reverse=False)]
+            if i == 0:
+                model_table["Model size"] = sorted_size_strs
+            model_table[f"k = {k}"] = [f"{acc:.1f} +/- {std:.1f}" for acc, std in zip(sorted_accuracies, sorted_stds)]
+            for size_i in range(len(sorted_size_strs)):
+                size_str = sorted_size_strs[size_i]
+                sized_model = f"{model_class}-{size_str}"
+                if len(model_tables_per_size[size_i]["Template"]) == 0:
+                    model_tables_per_size[size_i]["Template"] = data_per_model_per_template[sized_model][k]["templates"]
+                model_tables_per_size[size_i][f"k = {k}"] = [float(f"{acc:.3}") for acc in data_per_model_per_template[sized_model][k]["accuracies"]]
+                model_sorted_size_strs.append(size_str)
+        for i, (sized_table, size_str) in enumerate(zip(model_tables_per_size, model_sorted_size_strs)):
+            for j, col in enumerate(sized_table):
+                if j == 0:
+                    sized_table[col].extend(["Mean", " -- std", "Structured", " -- std", "Natural", " -- std"])
+                else:
+                    total_mean = np.mean(sized_table[col])
+                    natural_accs = [sized_table[col][1], sized_table[col][4], sized_table[col][5]]
+                    structured_accs = [sized_table[col][0], sized_table[col][2], sized_table[col][3]]
+                    natural_mean = np.mean(natural_accs)
+                    structured_mean = np.mean(structured_accs)
+                    sized_table[col].extend([f"{total_mean:.3}",
+                                             f"{np.std(sized_table[col]):.3}",
+                                             f"{structured_mean:.3}",
+                                             f"{np.std(structured_accs):.3}",
+                                             f"{natural_mean:.3}",
+                                             f"{np.std(natural_accs):.3}",])
+            print(f"{model_class}-{size_str}")
+
+            df = pd.DataFrame(sized_table)
+            sized_model = f"{model_class}-{size_str}"
+            # df = df.assign(mean=df.iloc[seeds, 1:].mean(axis=1))
+            # df = df.assign(mean=df.mean(axis=0))
+            print(df.to_latex(index=False,
+                              position="ht",
+                              label=f"appendix:tab:{sized_model}",
+                              caption=f"Accuracy per prompt template for {sized_model}.",
+                              bold_rows=True,
+                              column_format="c" * (len(k_shot) + 1)))
+        # df = pd.DataFrame(model_table)
+        # # df = df.set_index("Model size")
+        # # print(f"-------------------------- {model_class} --------------------------")
+        # print(df.to_latex(index=False,
+        #                   position="ht",
+        #                   label=f"appendix:tab:{model_class}",
+        #                   caption=f"Average accuracy for {model_class} model.",
+        #                   bold_rows=True,
+        #                   column_format="c" * (len(k_shot) + 1)))
+
+
+def save_timestamp_per_api_call():
+    # models = ["ada", "babbage", "curie", "davinci",
+    #           "gpt-ada", "gpt-babbage", "gpt-curie", "gpt-3",
+    #           "instructgpt",
+    #           "cohere-small", "cohere-medium", "cohere-large", "cohere-xl",
+    #           ]
+    # names = ["GPT-3-ada", "GPT-3-babbage", "GPT-3-curie", "GPT-3-davinci",
+    #          "OpenAI-ada", "OpenAI-babbage", "OpenAI-curie", "OpenAI-davinci-001",
+    #          "OpenAI-Davinci-002",
+    #          "Cohere-small", "Cohere-medium", "Cohere-large", "Cohere-xl",
+    #          ]
+    models = ["openai-text-davinci-003", "openai-chatgpt", "openai-gpt4", "cohere-commandmedium", "cohere-commandxl"]
+    names = ["OpenAI-text-davinci-003", "OpenAI-gpt-3.5.turbo", "OpenAI-gpt-4", "Cohere-command-medium", "Cohere-command-xl"]
+    k = [0, 1, 5, 10, 15, 30]
+    timestamp_table = {"model": [], "timestamp": []}
+    year = "2023"
+    for i, model in enumerate(models):
+        for k_shot in k:
+            results_folder = f"results/{model}/{k_shot}-shot"
+            files_in_dir = [file for file in os.listdir(results_folder) if file.startswith("results")]
+            assert len(files_in_dir) == 1, f"Found {len(files_in_dir)} result files in {results_folder} instead of 1."
+            results_file = files_in_dir.pop()
+            timestamp_table["model"].append(f"{names[i]}/{k_shot}-shot")
+            split_file = results_file.split("_")
+            timestamp = [stamp for stamp in split_file if year in stamp]
+            if not len(timestamp):
+                for file in os.listdir(results_folder):
+                    if year in file and ("results" in file or "data" in file):
+                        split_file = file.split("_")
+                        timestamp = [stamp for stamp in split_file if year in stamp]
+            timestamp_table["timestamp"].append(timestamp.pop().split(".json")[0].split(".")[0])
+    df = pd.DataFrame(timestamp_table)
+    # df = df.assign(mean=df.iloc[seeds, 1:].mean(axis=1))
+    # df = df.assign(mean=df.mean(axis=0))
+    print(df.to_latex(index=False,
+                      position="ht",
+                      label=f"appendix:tab:timestamps",
+                      caption=f"Timestamp each model behind an API was evaluated.",
+                      bold_rows=True,
+                      column_format="ll"))
+
+
+def make_type_label_plot(project_folder):
+
+    with open("error_analysis/all_type_label_results.json", "r") as infile:
+        all_results = json.load(infile)
+
+    with open("error_analysis_cot/all_type_label_results.json", "r") as infile:
+        all_results_cot = json.load(infile)
+
+    base_models = ["Cohere", "BLOOM", "OPT", "GPT-3", "EleutherAI"]
+    hf_models = ["Cohere-command", "text-<engine>-001", "text-davinci-002", "text-davinci-003",
+                 "ChatGPT", "GPT-4"]
+    conv_models = ["BlenderBot"]
+    mt_ft_models = ["T0", "Flan-T5"]
+    humans = ["Humans"]
+    model_grouping = {
+        "base": base_models,
+        "hf": hf_models,
+        "conv": conv_models,
+        "mt": mt_ft_models,
+        "humans": humans
+    }
+    models_for_line = ["Cohere-command", "GPT-4"]
+    names_for_line = ["Cohere-command-52B", "GPT-4"]
+    line = {"Particularised": {"x": [], "y": [], "yerr": []},
+            "Generalised": {"x": [], "y": [], "yerr": []}}
+    human_particularised = all_results["Humans"]["Particularised"]
+    human_generalised = all_results["Humans"]["Generalised"]
+    lines_per_model = {model: copy.deepcopy(line) for model in models_for_line}
+
+    for grouping in model_grouping:
+        print("--" * 10)
+        print(f"Model group {grouping}")
+        print("--" * 10)
+        mean_diff_per_k = {f"{k}": 0 for k in [0, 1, 5, 10, 15, 30]}
+        count_per_k = {f"{k}": 0 for k in [0, 1, 5, 10, 15, 30]}
+        for model, results_per_k in all_results.items():
+            if model not in model_grouping[grouping] or model == "Humans":
+                continue
+            for k, results_per_size in results_per_k.items():
+                largest_model = list(results_per_size.keys())[-1]
+                for size, results in results_per_size.items():
+                    if size not in largest_model:
+                        continue
+                    diff = all_results["Humans"]["Generalised"] - results["Generalised"]["mean"]
+                    mean_diff_per_k[k] += diff
+                    count_per_k[k] += 1
+                    if model in models_for_line:
+                        lines_per_model[model]["Generalised"]["x"].append(int(k))
+                        lines_per_model[model]["Generalised"]["y"].append(results["Generalised"]["mean"])
+                        lines_per_model[model]["Generalised"]["yerr"].append(results["Generalised"]["std"])
+                        lines_per_model[model]["Particularised"]["x"].append(int(k))
+                        lines_per_model[model]["Particularised"]["y"].append(results["Particularised"]["mean"])
+                        lines_per_model[model]["Particularised"]["yerr"].append(results["Particularised"]["std"])
+        for k in mean_diff_per_k:
+            if count_per_k[k] > 0:
+                print(f"Mean difference for {k}-shot: {mean_diff_per_k[k] / count_per_k[k]}")
+        print("--" * 10)
+        print("--" * 10)
+    mean_diff_cot = 0
+    count_cot = 0
+    for model, results_per_k in all_results_cot.items():
+        if model == "Humans":
+            continue
+        for k, results_per_size in results_per_k.items():
+            for size, results in results_per_size.items():
+                diff = results["Generalised"]["mean"] - results["Particularised"]["mean"]
+                mean_diff_cot += diff
+                count_cot += 1
+    print(f"Mean difference for CoT: {mean_diff_cot / count_cot}")
+
+    models_to_add = ["text-<engine>-001", "text-davinci-002", "text-davinci-003",
+                     "ChatGPT", "GPT-4", "Cohere-command"]
+    model_names = ["text-davinci-001-?", "text-davinci-002-?", "text-davinci-003-?",
+                     "ChatGPT-?", "GPT-4-?", "Cohere-command-52b"]
+    sizes = ["unknown", "unknown", "unknown", "unknown", "unknown", "52b"]
+    models_to_add = ["GPT-3", "GPT-4", "Cohere-command"]
+    model_names = ["GPT-3-175b", "GPT-4-?", "Cohere-command-52b"]
+    sizes = ["175b", "unknown", "52b"]
+    k_to_show = ["0", "5", "0"]
+    plots = ["0-shot", "5-shot", "5-shot CoT"]
+    k_to_show = ["0", "5"]
+    plots = ["0-shot", "5-shot"]
+    bars = ["Other", "Generalised", "Particularised"]
+    bar_colors = {
+        "Other": MODEL_COLORS["Cohere-command"],
+        "Generalised": MODEL_COLORS["BLOOM"],
+        "Particularised": MODEL_COLORS["Cohere"],
+    }
+
+    means_per_bar_per_plot = {plot: {bar: [] for bar in bars} for plot in plots}
+    stds_per_bar_per_plot = {plot: {bar: [] for bar in bars} for plot in plots}
+    for i, model in enumerate(models_to_add):
+        size_of_model = sizes[i]
+        plot_results = {}
+        for j, k in enumerate(k_to_show):
+            results = all_results[model][k][size_of_model]
+            plot_results[plots[j]] = results
+        for plot in plots:
+            for bar in bars:
+                means_per_bar_per_plot[plot][bar].append(plot_results[plot][bar]["mean"])
+                stds_per_bar_per_plot[plot][bar].append(plot_results[plot][bar]["std"])
+
+    for plot in plots:
+        groups = models_to_add
+        means_per_bar = means_per_bar_per_plot[plot]
+        stds_per_bar = stds_per_bar_per_plot[plot]
+        x = np.arange(len(groups))
+        width = 0.25
+        multiplier = 0
+
+        fig, ax = plt.subplots(layout='constrained')
+
+        for attribute, measurement in means_per_bar.items():
+            std = stds_per_bar[attribute]
+            offset = width * multiplier
+            color = bar_colors[attribute]
+            rects = ax.bar(x + offset, measurement, width,
+                           yerr=std,label=attribute, color=color)
+            # ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        ax.set_ylabel('Accuracy (%)')
+        ax.set_title(f'Accuracies for "{plot}" evaluation of the group HF FT.')
+        ax.set_xticks(x + width, model_names)
+        plt.xticks(rotation=25)
+        ax.legend(loc='upper center', ncols=3)
+        ax.set_ylim(0, 100)
+
+        plt.tight_layout()
+        plt.savefig(f"error_analysis/type_labels_barchart_{plot}.jpg")
+
+    # Absolute plot
+    linewidth = 3
+    markersize = 10
+    fig, axs = plt.subplots(1, 2, sharey=True, sharex=True, figsize=(28, 14), dpi=600)
+    legend_lines, legend_labels = [], []
+    x_min = float("inf")
+    x_max = 0
+    saved_colors = {}
+    colors = plt.cm.Dark2(np.linspace(0, 1, 2))
+    for i, model in enumerate(models_for_line):
+        # plt.figure(figsize=(16, 14), dpi=200)
+        # ax = axs[int(i // 2), i % 2]
+        ax = axs[i % 2]
+        for j, (line_key, line_data) in enumerate(lines_per_model[model].items()):
+            if line_key not in ["Particularised", "Generalised", "Other", "Mean"]:
+                continue
+            color = colors[j]
+            saved_colors[line_key] = color
+            line = ax.errorbar(
+                line_data["x"],
+                line_data["y"],
+                yerr=line_data["yerr"],
+                label=f"Prompt template {line_key}",
+                marker="o",
+                color=colors[j],
+                linestyle="solid" if line_key != "Mean" else "dotted",
+                markersize=markersize,
+                linewidth=linewidth,
+            )
+            if min(line_data["x"]) < x_min:
+                x_min = min(line_data["x"])
+            if max(line_data["x"]) > x_max:
+                x_max = max(line_data["x"])
+            if i == 0:
+                legend_lines.append(line)
+                if line_key == "Mean":
+                    line_key = "All types"
+                legend_labels.append(f"{line_key}")
+        ax.xaxis.set_tick_params(labelsize=24)
+        ax.yaxis.set_tick_params(labelsize=24)
+        ax.title.set_text(f"{names_for_line[i]}")
+        ax.title.set_size(24)
+        ax.set_ylim(45., 100.)
+        if i == 0:
+            ax.set_ylabel("Accuracy (%)", fontsize=28)
+        ax.set_xlabel("k", fontsize=28)
+    # for i in range(len(axs)):
+    #     ax = axs[i, 0]
+        randomline = ax.hlines(
+            y=50.0,
+            xmin=x_min,
+            xmax=x_max,
+            label="Random chance",
+            linestyles="dotted",
+            color="red",
+            linewidth=linewidth,
+        )
+        part_human = ax.hlines(y=human_particularised, xmin=x_min, xmax=x_max, label="Human particularised", linestyles="dotted",
+                   color=saved_colors["Particularised"], linewidth=linewidth)
+
+        gen_human = ax.hlines(y=human_generalised, xmin=x_min, xmax=x_max, label="Human generalised", linestyles="dotted",
+                   color=saved_colors["Generalised"], linewidth=linewidth)
+    legend_lines.append(part_human)
+    legend_labels.append("Human particularised")
+    legend_lines.append(gen_human)
+    legend_labels.append("Human generalised")
+    legend_lines.append(randomline)
+    legend_labels.append("Random chance")
+    axs[1].legend(legend_lines, legend_labels, fontsize=20, loc="lower right")
+    plt.suptitle(
+        f"Accuracy for two different types of implicature.\nNB: Y-axis starts at 45% (just below random performance).", fontsize=28
+    )
+    plt.subplots_adjust(top=0.75)
+    plt.tight_layout()
+    plt.savefig(f"{project_folder}/type_labels_plot_absolute_new.jpg")
+
+
+def api_variance(folder: str):
+
+    likelihood_per_coherent_example = defaultdict(lambda: defaultdict(list))
+    likelihood_per_incoherent_example = defaultdict(lambda: defaultdict(list))
+    files_read = []
+    coherent_examples = defaultdict(lambda: defaultdict(str))
+    incoherent_examples = defaultdict(lambda: defaultdict(str))
+    for file in os.listdir(folder):
+        if "results" in file and ".json" in file:
+            files_read.append(f"{folder}/{file}")
+            with open(f"{folder}/{file}", "r") as infile:
+                results = json.load(infile)
+                for i, result in enumerate(results["predictions"]):
+                    model_results = result["openai-davinci"]
+                    for prompt_template, template_result in model_results.items():
+                        if "prompt_template" in prompt_template:
+                            correct_score = template_result["implicature_result"]["correct_score"]
+                            false_score = template_result["implicature_result"]["false_score"]
+                            correct_text = template_result["implicature_result"]["scored_texts"]["correct"]
+                            false_text = template_result["implicature_result"]["scored_texts"]["false"]
+                            if coherent_examples[i][prompt_template]:
+                                assert coherent_examples[i][prompt_template] == correct_text
+                                assert incoherent_examples[i][prompt_template] == false_text
+                            else:
+                                coherent_examples[i][prompt_template] = correct_text
+                                incoherent_examples[i][prompt_template] = false_text
+                            likelihood_per_coherent_example[i][prompt_template].append(-1*np.log(correct_score))
+                            likelihood_per_incoherent_example[i][prompt_template].append(-1*np.log(false_score))
+
+    print(f"Read results from following files: {files_read}")
+    variance_per_example_per_template_coherent = defaultdict(lambda: defaultdict(float))
+    variance_per_example_per_template_incoherent = defaultdict(lambda: defaultdict(float))
+
+    variance_per_template_coherent = defaultdict(list)
+    variance_per_template_incoherent = defaultdict(list)
+
+    for example_idx, likelihoods_per_template in likelihood_per_coherent_example.items():
+        for template, likelihoods in likelihoods_per_template.items():
+            variance_per_example_per_template_coherent[example_idx][template] = np.std(likelihoods)
+        for template, example_variance in variance_per_example_per_template_coherent[example_idx].items():
+            variance_per_template_coherent[template].append(example_variance)
+
+    for example_idx, likelihoods_per_template in likelihood_per_incoherent_example.items():
+        for template, likelihoods in likelihoods_per_template.items():
+            variance_per_example_per_template_incoherent[example_idx][template] = np.std(likelihoods)
+        for template, example_variance in variance_per_example_per_template_incoherent[example_idx].items():
+            variance_per_template_incoherent[template].append(example_variance)
+
+    average_variance_per_template_coherent = defaultdict(float)
+    average_variance_per_template_incoherent = defaultdict(float)
+    variance_coherent_overall = 0
+    variance_incoherent_overall = 0
+    num_templates = 0
+    for template, variance in variance_per_template_coherent.items():
+        average_variance_per_template_coherent[template] = np.mean(variance)
+        print(f"Coherent variance for template {template} is {average_variance_per_template_coherent[template]}")
+        num_templates += 1
+        variance_coherent_overall += average_variance_per_template_coherent[template]
+    for template, variance in variance_per_template_incoherent.items():
+        average_variance_per_template_incoherent[template] = np.mean(variance)
+        print(f"Incoherent variance for template {template} is {average_variance_per_template_incoherent[template]}")
+        variance_incoherent_overall += average_variance_per_template_incoherent[template]
+
+    print(f"Variance coherent overall is {variance_coherent_overall/num_templates}")
+    print(f"Variance incoherent overall is {variance_incoherent_overall / num_templates}")
+    print(f"Variance overall is {(variance_coherent_overall/num_templates) + (variance_incoherent_overall / num_templates) / 2}")
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -2091,10 +3164,19 @@ if __name__ == "__main__":
     #     "openai-text-davinci-001",
     # ]
     # k = [0, 1, 5, 10, 15, 30]
+    # models = ["cohere-commandxl", "cohere-commandmedium"]
+    project_folder = "error_analysis"
+    # models = ["CoT-cohere-commandmedium", "CoT-cohere-commandxl", "CoT-openai-ada", "CoT-openai-babbage",
+    #           "CoT-openai-curie", "CoT-openai-davinci", "CoT-openai-text-ada-001", "CoT-openai-text-babbage-001",
+    #           "CoT-openai-text-curie-001", "CoT-openai-text-davinci-002",
+    #           "CoT-openai-text-davinci-003", "CoT-openai-chatgpt", "CoT-openai-gpt-4"]
+    # models = ["CoT-openai-text-davinci-001"]
+    # TODO: add davinci 001
+    # k = [5]
     # for model in models:
     #     for k_shot in k:
     #         folder = f"results/{model}/{k_shot}-shot"
-    #         error_analysis_per_k(folder, "error_analysis")
+    #         error_analysis_per_k(folder, project_folder)
 
     # if not os.path.exists("error_analysis"):
     #     os.mkdir("error_analysis")
@@ -2104,21 +3186,51 @@ if __name__ == "__main__":
     # for lm_eval_folder in lm_eval_folders:
     #     convert_lm_eval_results(lm_eval_folder, "error_analysis")
 
-    file = "error_analysis/all_results.json"
-    label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
-    models_to_show = ["InstructGPT", "OPT", "Cohere"]
+    file = f"{project_folder}/all_results.json"
+    # label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
+    # models_to_show = ["InstructGPT", "OPT", "Cohere"]
+
     # Uncomment to show all models in paper if all_results.json downloaded from ...
-    # models_to_show = ["InstructGPT-3", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5"]
-    # label_order = ["Best human", "Avg. human", "InstructGPT-3", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
+    models_to_show = ["OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5", "Cohere-command"]
+    label_order = ["Best human", "Avg. human", "Cohere-command", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
+    # models_to_show = ["text-<engine>-001", "Cohere-command", "GPT-3"]
+    # label_order = ["Best human", "Avg. human", "text-<engine>-001", "Cohere-command", "GPT-3"]
     # plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
+
+    # Uncomment to show all models in an accuracy v. k graph (if all_results.json downloaded from ...)
+    groups_per_model = ["Example IT", "Example IT", "Example IT", "Example IT", "Example IT",
+                        "Base", "Base", "Base", "Base", "Base", "Benchmark IT", "Dialogue FT", "Benchmark IT",
+                        "Example IT"]
+    models_to_show = ["GPT-4", "ChatGPT", "text-davinci-003", "text-davinci-002", "text-<engine>-001", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
+                      "Cohere-command"]
+    label_order = ["GPT-4", "text-davinci-002", "text-davinci-003", "text-<engine>-001", "ChatGPT", "Cohere-command", "GPT-3", "Cohere", "OPT", "Flan-T5",
+                   "BLOOM", "EleutherAI", "BlenderBot", "T0", "Random chance"]
+    # plot_few_shot(file, models_to_show=models_to_show, label_order=label_order, groups_per_model=groups_per_model)
     # plot_all_lines(file)
-    # type_label_analysis()
+    # type_label_analysis(project_folder,
+    #                     models_to_show=["Cohere", "Cohere-command",
+    #                                     "OPT", "BLOOM", "EleutherAI", "GPT-3", "T0", "BlenderBot", "Flan-T5",
+    #                                     "text-<engine>-001", "text-davinci-002", "text-davinci-003",
+    #                                     "ChatGPT", "GPT-4"])
+    # type_label_analysis(project_folder,
+    #                     models_to_show=[
+    #                                     "Cohere-command",
+    #                                     "text-<engine>-001", "text-davinci-002", "text-davinci-003",
+    #                                     "ChatGPT", "GPT-4"], k_shot=[0])
+    # make_type_label_plot(project_folder)
+    api_variance(folder="results/API-variance-openai")
     # write_to_csv(file)
+    # print_latex_table(file)
+    # save_timestamp_per_api_call()
 
     # generate_chatgpt_eval_files()
+    # compare_BIG_bench_task()
 
     # eval_chatgpt_files(folder="data/chatGPT/no_template_no_shuffle_zero_shot_answered", shuffled=False, templated=False)
     # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
     # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_zero_shot_answered", shuffled=True, templated=False)
     # eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
-    eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_five_shot", shuffled=False, templated=True)
+    # eval_chatgpt_files(folder="data/chatGPT/no_template_no_shuffle_five_shot_answered", shuffled=False, templated=False)
+    # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_five_shot_answered", shuffled=True, templated=False)
+    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
+    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_five_shot_answered", shuffled=False, templated=True)

@@ -26,6 +26,7 @@ max_num_evaluations: -1
 # Model arguments
 model_ids: "cohere-medium"
 k_shot: 0
+random_labels: false
 prompt_class: "ExamplePrompt"
 task: "ranking"
 seed: 0

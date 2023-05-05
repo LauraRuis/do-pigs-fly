@@ -17,7 +17,7 @@ from src.helpers import (
 from src.models import CohereModelWrapper, OpenAIModel
 from src.dataset import ParticularisedImplicatureDataset
 from src.prompting import read_prompt_file
-from src.task import RankingTask, Task
+from src.task import RankingTask, Task, CompletionTask
 import pandas as pd
 
 logger = logging.getLogger()
@@ -47,7 +47,7 @@ def load_models(arguments, prompt_variations):
             size = model_id.split("-")[-1]
             model = CohereModelWrapper(model_size=size)
             assert (
-                arguments.task == "ranking"
+                arguments.task == "ranking" or arguments.task == "completion"
             ), "Only ranking task implemented for Cohere models."
         elif "openai" in model_id:
             engine = model_id.split("-")[-1]
@@ -57,13 +57,18 @@ def load_models(arguments, prompt_variations):
 
         # Prepare metrics.
         implicature_metrics = MultiMetric(num_metrics=len(prompt_variations))
+        completion_metrics = MultiMetric(num_metrics=len(prompt_variations))
         bigger_is_better = True if arguments.task == "completion" else False
+        if arguments.task == "completion":
+            assert "openai" in arguments.model_ids or "cohere" in arguments.model_ids, \
+                "Only OpenAI and Cohere models implemented for completion task."
 
         models.append(
             {
                 "model": model,
                 "model_id": model_id,
                 "implicature_metrics": implicature_metrics,
+                "completion_metrics": completion_metrics,
                 "bigger_is_better": bigger_is_better,
             }
         )
@@ -91,8 +96,10 @@ def get_tasks(arguments):
     elif arguments.task == "contrastive":
         # The contrastive task is only different in the prompt
         task_handler = RankingTask()
+    elif arguments.task == "completion":
+        task_handler = CompletionTask()
     else:
-        raise NotImplementedError(f"Task {arguments.task} is not implemented.")
+        raise ValueError(f"Unknown --task {arguments.task}")
     return task_handler
 
 
@@ -108,22 +115,35 @@ def dataloader(
         dataset.get_implicature_iterator(k_shot=arguments.k_shot)
     ):
         # historically iterate this way
-        prepared_example = task_handler.prepare_for_task(implicature)
+        prepared_example = task_handler.prepare_for_task(implicature, arguments.random_labels)
 
         for prompt_idx, prompt_template in enumerate(prompt_templates):
             _example = implicature
-            for label_idx, label_type in enumerate(
-                ["correct_example", "false_example"]
-            ):
+            if arguments.task == "ranking" or arguments.task == "contrastive":
+                for label_idx, label_type in enumerate(
+                    ["correct_example", "false_example"]
+                ):
+                    prompt = prepared_example["prompt_examples"]
+                    label = prepared_example[label_type]
+                    is_false_example = True if label_type == "false_example" else False
+                    label = task_handler.prepare_datapoint(
+                        label, prompt_template, is_false_example, prompt
+                    )
+                    info = {"example": _example, "prompt": prompt}
+                    yield csv_idx, prompt_idx, label_idx, datapoint_idx, label, info
+                    datapoint_idx += 1
+            elif arguments.task == "completion":
                 prompt = prepared_example["prompt_examples"]
-                label = prepared_example[label_type]
-                is_false_example = True if label_type == "false_example" else False
+                label = prepared_example["test_example"]
+                is_false_example = False
                 label = task_handler.prepare_datapoint(
                     label, prompt_template, is_false_example, prompt
                 )
                 info = {"example": _example, "prompt": prompt}
-                yield csv_idx, prompt_idx, label_idx, datapoint_idx, label, info
+                yield csv_idx, prompt_idx, 0, datapoint_idx, label, info
                 datapoint_idx += 1
+            else:
+                raise ValueError(f"Unknown --task {arguments.task}")
 
 
 def save_results(
@@ -131,6 +151,7 @@ def save_results(
     old_df,
     example_result,
     correct_per_variation,
+    valid_completions,
     all_results,
     implicature_write_lines,
     prompt_variations,
@@ -151,8 +172,33 @@ def save_results(
 
     impl_df = new_df
     new_new_df = impl_df
-
-    new_new_df["task_is_correct"] = new_new_df["score"] < new_new_df["negative_score"]
+    if arguments.task == "ranking" or arguments.task == "contrastive":
+        new_new_df["task_is_correct"] = new_new_df["score"] < new_new_df["negative_score"]
+        new_new_df["valid_completion"] = [0] * len(new_new_df["task_is_correct"])
+    elif arguments.task == "completion":
+        task_is_correct_list = []
+        valid_completion_list = []
+        for i, example in enumerate(new_new_df.example):
+            completion = new_new_df["score"][i]
+            split_answer = completion.lower().split("answer:")[-1]
+            true_answer = example["example"]["implicature"]
+            # If completion output was not specified properly, assume answer is last word of output.
+            if "answer:" not in completion.lower():
+                split_answer = split_answer[-10:]
+            if "no" not in split_answer.lower() and "yes" not in split_answer.lower():
+                valid_completion_ex = False
+            else:
+                valid_completion_ex = True
+            if true_answer.lower() in split_answer.lower():
+                task_correct = True
+            else:
+                task_correct = False
+            task_is_correct_list.append(task_correct)
+            valid_completion_list.append(valid_completion_ex)
+        new_new_df["task_is_correct"] = task_is_correct_list
+        new_new_df["valid_completion"] = valid_completion_list
+    else:
+        raise ValueError(f"Unknown --task {arguments.task}")
 
     new_new_df.to_csv("akbir_test.csv")
 
@@ -164,10 +210,14 @@ def save_results(
         model_d = models[model_idx]
         prompt_idx = row["prompt_idx"]
         task_is_correct = row["task_is_correct"]
+        valid_completion = row["valid_completion"]
 
         # regular method for adding things to loggers
         example_correct = model_d["implicature_metrics"].update(
             index_to_update=prompt_idx, correct=task_is_correct
+        )
+        valid_completion = model_d["completion_metrics"].update(
+            index_to_update=prompt_idx, correct=valid_completion
         )
 
         result = {
@@ -179,11 +229,14 @@ def save_results(
             },
         }
         result["task_correct"] = example_correct
+        result["valid_completion"] = valid_completion
         correct_per_variation += result["task_correct"]
+        valid_completions += result["valid_completion"]
 
         example_result[model_d["model_id"]][f"prompt_template_{prompt_idx}"] = {
             "implicature_result": {
                 "example_correct": result["task_correct"],
+                "valid_completion": result["valid_completion"],
                 "correct_score": row["score"],
                 "false_score": row["negative_score"],
                 "scored_texts": result["scored_texts"],
@@ -199,6 +252,10 @@ def save_results(
                 correct_per_variation / len(prompt_variations)
             ) * 100.0
 
+            example_result[model_d["model_id"]]["average_valid_completion"] = (
+                valid_completions / len(prompt_variations)
+            ) * 100.0
+
             example_result["original_example"] = row["example"]["example"]
             example_result["prompt_examples"] = row["prompt"]
             all_results.append(example_result)
@@ -206,6 +263,7 @@ def save_results(
             # reset example specific metrics
             example_result = defaultdict(lambda: defaultdict())
             correct_per_variation = 0
+            valid_completions = 0
     save_results_to_file(
         len(prompt_templates),
         models,
@@ -219,6 +277,7 @@ def save_results(
         new_new_df,
         example_result,
         correct_per_variation,
+        valid_completions,
         write_data_to,
         write_results_to,
     )
@@ -246,6 +305,7 @@ def main(arguments):
     implicature_write_lines = []
     example_result = defaultdict(lambda: defaultdict())
     correct_per_variation = 0
+    valid_completions = 0
 
     # Path to save all results (intermediate and final)
     save_file_data = f"data_{arguments.task}_task_{arguments.k_shot}_nprompts_{len(prompt_templates)}_npromptvars_{str(datetime.today())}.json"
@@ -298,7 +358,10 @@ def main(arguments):
             ):
                 continue
             # Get log probabilities for the damm datapoint
-            _scores = model_d["model"].get_model_score(_label)
+            if arguments.task != "completion":
+                _scores = model_d["model"].get_model_score(_label)
+            else:
+                _scores = model_d["model"].get_model_completion(_label)
             batch_results = []
             for batch_idx, score in enumerate(_scores):
                 results.append(
@@ -323,11 +386,12 @@ def main(arguments):
                     }
                     | _info[batch_idx]
                 )
-            df, example_result, correct_per_variation, _, _ = save_results(
+            df, example_result, correct_per_variation, valid_completions, _, _ = save_results(
                 batch_results,
                 df,
                 example_result,
                 correct_per_variation,
+                valid_completions,
                 all_results,
                 implicature_write_lines,
                 prompt_variations,

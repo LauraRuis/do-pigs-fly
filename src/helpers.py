@@ -110,6 +110,8 @@ def log_all_results(models):
         logger.info(f"Scores for model card {model_d['model_id']}")
         logger.info("Implicature score:")
         logger.info(model_d["implicature_metrics"])
+        logger.info("Valid completions score:")
+        logger.info(model_d["completion_metrics"])
 
 
 def log_prompt_templates(prompt_templates, k_shot, mask_token=None):
@@ -151,15 +153,18 @@ def save_results_to_file(
     arguments,
 ):
     all_results = defaultdict(lambda: defaultdict(lambda: defaultdict()))
-    metric_labels = ["implicature_metrics"]
+    metric_labels = ["implicature_metrics", "completion_metrics"]
     columns = ["model"]
     for i in range(num_prompt_templates):
         for metric_label in metric_labels:
             columns.append(f"{i}_{metric_label}")
     for model_d in models:
         mean, std = model_d["implicature_metrics"].get_mean_and_std()
+        completion_mean, completion_std = model_d["completion_metrics"].get_mean_and_std()
         all_results[model_d["model_id"]]["mean_accuracy"] = mean
         all_results[model_d["model_id"]]["std"] = std
+        all_results[model_d["model_id"]]["mean_valid_completion_accuracy"] = completion_mean
+        all_results[model_d["model_id"]]["valid_completion_std"] = completion_std
 
         for i in range(num_prompt_templates):
             for metric_label in metric_labels:

@@ -28,4 +28,5 @@ skip_until_idx: -1
 model_ids: "roberta-base"
 task: "ranking"
 k_shot: 0
+random_labels: false
 prompt_class: "ExamplePrompt"

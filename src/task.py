@@ -1,6 +1,8 @@
 from src.helpers import get_negative_binary_example
 from src.prompting import Prompt
 
+import random
+
 
 def is_correct_ranking(
     correct_score: float, false_score: float, bigger_is_better: bool
@@ -18,7 +20,7 @@ def is_correct_ranking(
 
 
 class Task:
-    def prepare_for_task(self, example):
+    def prepare_for_task(self, example, random_labels: bool):
         """
         Apply the transformations to the example that are necessary for the specific task but which are independent
         of the model / prompt variation used.
@@ -30,6 +32,17 @@ class Task:
 
     def task_is_correct(self, result, bigger_is_better) -> bool:
         raise NotImplementedError()
+
+    def randomise_labels(self, examples):
+        for example in examples:
+            assert example["implicature"] in ["yes", "no"], "Cannot randomise labels if label not in 'yes' or 'no'"
+            example["implicature"] = random.choice(["yes", "no"])
+            example["randomised_label"] = True
+            if example["implicature"] != example["type"]:
+                example["label_is_random"] = True
+            else:
+                example["label_is_random"] = False
+        return examples
 
 
 class RankingTask(Task):
@@ -75,11 +88,13 @@ class RankingTask(Task):
         )
         return label
 
-    def prepare_for_task(self, example):
+    def prepare_for_task(self, example, random_labels: bool):
         # Unpack examples and get a negative example
         false_example = get_negative_binary_example(example["example"])
         correct_example = example["example"]
         prompt_examples = example["prompts"]
+        if random_labels:
+            prompt_examples = self.randomise_labels(prompt_examples)
         return {
             "correct_example": correct_example,
             "false_example": false_example,
@@ -125,3 +140,41 @@ class RankingTask(Task):
             false_model_score,
             bigger_is_better=bigger_is_better,
         )
+
+
+class CompletionTask(Task):
+    """
+    This task prepares a prompt and expects the model to complete it.
+    """
+
+    def prepare_for_task(self, example, random_labels: bool):
+        """
+        Apply the transformations to the example that are necessary for the specific task but which are independent
+        of the model / prompt variation used.
+        """
+        if random_labels:
+            prompt_examples = self.randomise_labels(example["prompts"])
+        else:
+            prompt_examples = example["prompts"]
+        return {
+            "test_example": example["example"],
+            "prompt_examples": prompt_examples,
+        }
+
+    @staticmethod
+    def prepare_datapoint(
+            example,
+            prompt_template: Prompt,
+            is_false_example: bool,
+            prompt_examples=None,
+    ):
+        label = prompt_template.prompt_for_completion(
+            example, prompt_examples, mask_token=None
+        )
+        return label
+
+    def perform_task(self, model, objective, example, prompt_template, mask_token=None):
+        raise NotImplementedError()
+
+    def task_is_correct(self, result, bigger_is_better) -> bool:
+        raise NotImplementedError()

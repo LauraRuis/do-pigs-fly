@@ -41,7 +41,7 @@ Rust is a dependency for `transformers` library, install compiler with:
 Other requirements:
 
 ```bash
->> python -m pip install -r requirements.txt
+>> python -m pip install -r requirements
 ```
 
 Note that to run any evaluations you need to have OpenAI and Cohere's API keys. Add these keys
@@ -76,6 +76,17 @@ run `experiment_run_scripts/run_extra_prompts_openai.sh`.
 In the appendix, we did an experiment with a contrastive setup instead of a ranking setup. To run these experiments
 run `experiment_run_scripts/run_contrastive.sh`. Note that this only runs the experiment for multiple choice options "A" and "B".
 To change this like in the paper, adjust the code in `_wrap_in_template()` in `prompting.py`.
+
+### ChatGPT
+ChatGPT is only available with the completion endpoint in the OpenAI API, so we had to adjust the prompt templates to guide the model more
+strongly towards outputting 'yes' or 'no'. To run these experiments, run `experiment_run_scripts/run_all_chatgpt.sh`.
+The different templates are in `data/prompt_templates_completion.txt`.
+
+### CoT
+We ran chain-of-thought (CoT) experiments on the best instructable models (`text-davinci-001`, `ChatGPT`, and `Cohere-command-XL`).
+CoT prompting also requires the model to be used with completion, because it should be able to write a chain of thought before
+outputting the final answer. Hence, we allow the models to generate tokens instead of using forced likelihood ranking.
+To run these experiments, run `experiment_run_scripts/run_all_cot.sh`. The prompt templtes are in `data/prompt_templates_cot.txt`.
 
 ## Visualise results
 For this section, unzip `results.zip`. It does not contain all the results in the paper, because those

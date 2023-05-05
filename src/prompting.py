@@ -170,13 +170,13 @@ class ExamplePrompt(Prompt):
         ), "Cannot prompt for completion example without phrase_to_put_mask set."
         index_to_start_completion = self._phrase_to_put_mask.index(" %s")
         phrase_to_keep = self._phrase_to_put_mask[:index_to_start_completion]
-        processed_example = self._wrap_in_template(example)
+        processed_example = self._wrap_in_template(example, is_false_example=False, prompt_example=False)
         index_to_start_completion = processed_example.index(phrase_to_keep) + len(
             phrase_to_keep
         )
         if prompt_examples:
             prompt_examples = [
-                self._wrap_in_template(prompt_example)
+                self._wrap_in_template(prompt_example, is_false_example=False, prompt_example=True)
                 for prompt_example in prompt_examples
             ]
         processed_example = processed_example[:index_to_start_completion]
@@ -224,6 +224,8 @@ def read_prompt_file(input_file: str) -> List[Dict[str, str]]:
     """
     assert os.path.exists
     prompts = []
+    if "cot" in input_file:
+        example_text = ""
     with open(input_file, "r") as infile:
         keys = []
         for i, row in enumerate(infile.readlines()):

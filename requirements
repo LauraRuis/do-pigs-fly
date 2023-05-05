@@ -9,3 +9,4 @@ openai
 matplotlib
 transformers
 pytest
+jinja2
