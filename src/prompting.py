@@ -82,6 +82,17 @@ class ExamplePrompt(Prompt):
         self, example: Dict[str, str], is_false_example: bool, prompt_example: bool
     ):
         if not self._contrastive:
+            # full_example = self._example_template_text % (
+            #     example["utterance"],
+            #     example["response"],
+            #     example["implicature"],
+            # )
+            # only_question = full_example.split("respon")[0]
+            # index_to_start_completion = self._phrase_to_put_mask.index(" %s")
+            # phrase_to_keep = self._phrase_to_put_mask[:index_to_start_completion]
+            # end_example = full_example.split(phrase_to_keep)[1]
+            # return f"{only_question}{phrase_to_keep}{end_example}"
+            # # TODO: change back!
             return self._example_template_text % (
                 example["utterance"],
                 example["response"],

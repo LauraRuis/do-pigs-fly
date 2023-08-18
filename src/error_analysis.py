@@ -1163,17 +1163,17 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
             plt.ylim(bottom=0., top=100.0)
             ax.set_xscale("log")
             ax.title.set_text(f"{k_to_str[k]}-shot.")
-            ax.title.set_size(20)
+            ax.title.set_size(50)
             if i % 2 == 0:
                 ylabel = "Accuracy (%)"
                 if normalize_metric:
                     ylabel = "Normalized " + ylabel
-                ax.set_ylabel(ylabel, fontsize=24)
-            ax.xaxis.set_tick_params(labelsize=18)
-            ax.yaxis.set_tick_params(labelsize=20)
+                ax.set_ylabel(ylabel, fontsize=50)
+            ax.xaxis.set_tick_params(labelsize=30)
+            ax.yaxis.set_tick_params(labelsize=30)
             # ax.set_xticks(fontsize=18)
             if int(i // 2) == 0:
-                ax.set_xlabel("Model Parameters (Non-Embedding)", fontsize=24)
+                ax.set_xlabel("Model Parameters (Non-Embedding)", fontsize=50)
     plt.ylim(bottom=0., top=100.0)
     legend_lines.append(humanline)
     legend_labels.append(f"Avg. human")
@@ -1191,8 +1191,8 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
         loc = "upper right"
     # fig.legend(legend_lines, legend_labels, fontsize=18)
     ordered_legend_lines = [legend_d[line_n] for line_n in label_order]
-    fig.legend(ordered_legend_lines, label_order, fontsize=26, bbox_to_anchor=[0.5, 0.1], loc=loc, ncol=3)
-    plt.suptitle(f"Performance on the implicature task \nfor k-shot evaluations", fontsize=28)
+    fig.legend(ordered_legend_lines, label_order, fontsize=43, bbox_to_anchor=[0.5, 0.1], loc=loc, ncol=3)
+    plt.suptitle(f"Performance on the implicature task \nfor k-shot evaluations", fontsize=50)
     # plt.tight_layout()
     # plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
     plt.subplots_adjust(top=0.75)
@@ -1619,7 +1619,7 @@ def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
     legend_d = {}
     legend_lines, legend_labels = [], []
     # plt.figure(figsize=(16, 14), dpi=200)
-    fig = plt.figure(figsize=(16, 14), dpi=200)
+    fig = plt.figure(figsize=(24, 14), dpi=200)
     ax = fig.add_subplot(111)
     k_to_str = {0: "Zero",
                 1: "One",
@@ -1670,7 +1670,7 @@ def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
         if name not in legend_d:
             legend_d[f"{name}"] = {}
         legend_d[f"{name}"]["line"] = line
-        legend_d[f"{name}"]["label"] = label
+        legend_d[f"{name}"]["label"] = f"{label}".replace("unknown", "*")
 
     width = 0.15  # the width of the bars
     multiplier = -1.5
@@ -1703,24 +1703,25 @@ def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
     ordered_rects = [all_rects[label] for label in ordered_groups]
     ordered_legend_lines = ordered_legend_lines
     ordered_legend_labels = ordered_legend_labels
-    legend_one = plt.legend(ordered_legend_lines, ordered_legend_labels, fontsize=23, loc="lower center", ncol=3)
+    legend_one = plt.legend(ordered_legend_lines, ordered_legend_labels, fontsize=35, loc='center left',
+                            bbox_to_anchor=(1, 0.4), ncol=1)
     ax = plt.gca().add_artist(legend_one)
-    plt.legend(ordered_rects, ordered_groups, fontsize=23, loc="upper center", ncol=4)
-    plt.xticks(np.arange(len(k_shot)), [k_to_str[k] for k in k_shot], fontsize=28)
-    plt.yticks(fontsize=28)  # Set text labels.
+    plt.legend(ordered_rects, ordered_groups, fontsize=36, loc="upper center", ncol=4)
+    plt.xticks(np.arange(len(k_shot)), [k_to_str[k] for k in k_shot], fontsize=30)
+    plt.yticks(fontsize=30)  # Set text labels.
     ymin = 0.
     ymax = 100.
     if use_differences:
         ymin = -5
         ymax = 17
     plt.ylim(bottom=ymin, top=ymax)
-    plt.xlabel("In-context examples (k)", fontsize=32)
-    plt.ylabel("Accuracy (%)", fontsize=32)
+    plt.xlabel("In-context examples (k)", fontsize=40)
+    plt.ylabel("Accuracy (%)", fontsize=40)
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.1, top=0.9, right=0.9, left=0.1)
+    plt.subplots_adjust(bottom=0.1, top=0.9, right=0.7, left=0.2)
     if not use_differences:
         plt.title(f"The accuracy versus number of in-context examples (k)\nwith bars showing group means",
-                  fontsize=32)
+                  fontsize=40)
     else:
         plt.title(f"Relative accuracy (w.r.t 0-shot) due to in-context examples.", fontsize=32)
     plt.savefig(os.path.join(results_folder, f"accuracy_v_k_all_scatter.png"))
@@ -2820,6 +2821,82 @@ def print_latex_table(results_path):
         #                   column_format="c" * (len(k_shot) + 1)))
 
 
+def save_compute_emission_per_experiment():
+    folder = "Results per model and compute"
+    file_prefix = "emissions-"
+    table = {"model": []}
+    model_order = ["EleutherAI", "BLOOM", "OPT", "BlenderBot", "T0", "Flan-T5"]
+    total_duration_per_gpu_type = defaultdict(int)
+    total_duration_per_cpu_type = defaultdict(int)
+    for model_folder in model_order:
+        cur_path = os.path.join(*[folder, model_folder])
+        if not os.path.isdir(cur_path):
+            continue
+        for size_folder in os.listdir(cur_path):
+            cur_path = os.path.join(*[folder, model_folder, size_folder])
+            if not os.path.isdir(cur_path):
+                continue
+            ks = []
+            infos_per_k = []
+            for file in os.listdir(cur_path):
+                if file.startswith(file_prefix):
+                    with open(os.path.join(*[folder, model_folder, size_folder, file]), "r") as infile:
+                        model = model_folder
+                        size = size_folder
+                        k = file.split("-shot")[-2].split("-")[-1]
+                        ks.append(int(k))
+                        contents = infile.readlines()
+                        labels = contents[0].split(",")
+                        values = contents[1].split(",")
+                        total_duration = 0
+                        for all_values in contents[1:]:
+                            these_values = all_values.split(",")
+                            gpu_model = these_values[23].split("x")[-1]
+                            if not gpu_model:
+                                continue
+                            count = int(these_values[22])
+                            total_duration += float(these_values[3])
+                            total_duration_per_gpu_type[gpu_model] += count * float(these_values[3])
+                        keep_idxs = [0, 3, 4, 6, 7, 20, 21, 22, 23]
+                        infos = {labels[i]: values[i] for i in keep_idxs}
+                        infos["duration"] = total_duration
+                        infos["emissions"] = f"{float(infos['emissions']):.2e}"
+                        infos["k"] = int(k)
+                        infos_per_k.append(infos)
+            sorted_infos = [x for _, x in sorted(zip(ks, infos_per_k))]
+            sorted_ks = sorted(ks)
+            for i, info in enumerate(sorted_infos):
+                k = sorted_ks[i]
+                assert info["k"] == k
+                model_name = f"{model}-{size}-{k}-shot"
+                table["model"].append(model_name)
+                for key, value in info.items():
+                    if key not in table:
+                        table[key] = []
+                    table[key].append(value)
+
+    df_1 = pd.DataFrame({"model": table["model"], "timestamp": table["timestamp"],
+                         "duration": table["duration"]})
+    df_2 = pd.DataFrame({"model": table["model"], "cpu_count": table["cpu_count"],
+                         "cpu_model": table["cpu_model"], "gpu_model": table["gpu_model"]})
+    # df = df.assign(mean=df.iloc[seeds, 1:].mean(axis=1))
+    # df = df.assign(mean=df.mean(axis=0))
+    print(df_1.to_latex(index=False,
+                      position="ht",
+                      label=f"appendix:tab:emissions",
+                      caption=f"Timestamp, duration, and emissions per experiment with non-API models.",
+                      bold_rows=True,
+                      column_format="lll"))
+    print(df_2.to_latex(index=False,
+                        position="ht",
+                        label=f"appendix:tab:compute",
+                        caption=f"Compute used per experiment with non-API models.",
+                        bold_rows=True,
+                        column_format="llll"))
+    for gpu_type, total_duration in total_duration_per_gpu_type.items():
+        print(f"Total duration for gpu {gpu_type} is {total_duration/60/60} hours.")
+
+
 def save_timestamp_per_api_call():
     # models = ["ada", "babbage", "curie", "davinci",
     #           "gpt-ada", "gpt-babbage", "gpt-curie", "gpt-3",
@@ -3032,14 +3109,14 @@ def make_type_label_plot(project_folder):
                 if line_key == "Mean":
                     line_key = "All types"
                 legend_labels.append(f"{line_key}")
-        ax.xaxis.set_tick_params(labelsize=24)
-        ax.yaxis.set_tick_params(labelsize=24)
+        ax.xaxis.set_tick_params(labelsize=30)
+        ax.yaxis.set_tick_params(labelsize=30)
         ax.title.set_text(f"{names_for_line[i]}")
-        ax.title.set_size(24)
+        ax.title.set_size(40)
         ax.set_ylim(45., 100.)
         if i == 0:
-            ax.set_ylabel("Accuracy (%)", fontsize=28)
-        ax.set_xlabel("k", fontsize=28)
+            ax.set_ylabel("Accuracy (%)", fontsize=45)
+        ax.set_xlabel("k", fontsize=45)
     # for i in range(len(axs)):
     #     ax = axs[i, 0]
         randomline = ax.hlines(
@@ -3062,9 +3139,9 @@ def make_type_label_plot(project_folder):
     legend_labels.append("Human generalised")
     legend_lines.append(randomline)
     legend_labels.append("Random chance")
-    axs[1].legend(legend_lines, legend_labels, fontsize=20, loc="lower right")
+    axs[1].legend(legend_lines, legend_labels, fontsize=40, loc="lower right")
     plt.suptitle(
-        f"Accuracy for two different types of implicature.\nNB: Y-axis starts at 45% (just below random performance).", fontsize=28
+        f"Accuracy for two different types of implicature.\nNB: Y-axis starts at 45% (just below random performance).", fontsize=50
     )
     plt.subplots_adjust(top=0.75)
     plt.tight_layout()
@@ -3139,16 +3216,6 @@ def api_variance(folder: str):
     print(f"Variance overall is {(variance_coherent_overall/num_templates) + (variance_incoherent_overall / num_templates) / 2}")
 
 
-
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     # NB: before this code will run, unzip results.zip
     #
@@ -3218,10 +3285,11 @@ if __name__ == "__main__":
     #                                     "text-<engine>-001", "text-davinci-002", "text-davinci-003",
     #                                     "ChatGPT", "GPT-4"], k_shot=[0])
     # make_type_label_plot(project_folder)
-    api_variance(folder="results/API-variance-openai")
+    # api_variance(folder="results/API-variance-openai")
     # write_to_csv(file)
     # print_latex_table(file)
     # save_timestamp_per_api_call()
+    save_compute_emission_per_experiment()
 
     # generate_chatgpt_eval_files()
     # compare_BIG_bench_task()

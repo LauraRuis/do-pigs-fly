@@ -222,6 +222,7 @@ class OpenAIModel(Model):
                         completion = prediction["choices"][0]["message"]["content"]
                     except:
                         completion = ""
+                    # time.sleep(0.1)  # TODO: remove this when rate limit is fixed
                 else:
                     try:
                         prediction = openai.Completion.create(
