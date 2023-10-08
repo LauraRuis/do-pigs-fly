@@ -3217,61 +3217,49 @@ def api_variance(folder: str):
 
 
 if __name__ == "__main__":
-    # NB: before this code will run, unzip results.zip
-    #
-    # Gather all results per models and k and add it to one big file.
-    # models = [
-    #     "cohere-small",
-    #     "cohere-medium",
-    #     "cohere-large",
-    #     "cohere-xl",
-    #     "openai-text-ada-001",
-    #     "openai-text-babbage-001",
-    #     "openai-text-curie-001",
-    #     "openai-text-davinci-001",
-    # ]
-    # k = [0, 1, 5, 10, 15, 30]
-    # models = ["cohere-commandxl", "cohere-commandmedium"]
-    project_folder = "error_analysis"
-    # models = ["CoT-cohere-commandmedium", "CoT-cohere-commandxl", "CoT-openai-ada", "CoT-openai-babbage",
-    #           "CoT-openai-curie", "CoT-openai-davinci", "CoT-openai-text-ada-001", "CoT-openai-text-babbage-001",
-    #           "CoT-openai-text-curie-001", "CoT-openai-text-davinci-002",
-    #           "CoT-openai-text-davinci-003", "CoT-openai-chatgpt", "CoT-openai-gpt-4"]
-    # models = ["CoT-openai-text-davinci-001"]
-    # TODO: add davinci 001
-    # k = [5]
-    # for model in models:
-    #     for k_shot in k:
-    #         folder = f"results/{model}/{k_shot}-shot"
-    #         error_analysis_per_k(folder, project_folder)
+    project_folder = "error_analysis_preview"
+    results_folder = "results_preview"
+    print(f"Running error analysis on {project_folder}, "
+          "change to another folder if all_results.json is located elsewhere.")
+    file = f"{project_folder}/all_results.json"
 
-    # if not os.path.exists("error_analysis"):
-    #     os.mkdir("error_analysis")
+    if not os.path.exists(project_folder):
+        os.mkdir(project_folder)
+    # NB: before this code will run, unzip results_preview.zip
+
+    # Gather all results per models and k and add it to one big file.
+    models = [
+        "cohere-commandxl",
+        "openai-gpt4"
+    ]
+    k = [0, 1, 5, 10, 15, 30]
+    for model in models:
+        for k_shot in k:
+            folder = f"{results_folder}/{model}/{k_shot}-shot"
+            error_analysis_per_k(folder, project_folder)
 
     # Add the results from the LM-eval-harness to all_results.json
-    # lm_eval_folders = ["results/opt evals"]
-    # for lm_eval_folder in lm_eval_folders:
-    #     convert_lm_eval_results(lm_eval_folder, "error_analysis")
+    lm_eval_folders = [f"{results_folder}/opt evals"]
+    for lm_eval_folder in lm_eval_folders:
+        convert_lm_eval_results(lm_eval_folder, "error_analysis")
 
-    file = f"{project_folder}/all_results.json"
-    # label_order = ["Best human", "Avg. human", "InstructGPT", "OPT", "Cohere", "Random chance"]
-    # models_to_show = ["InstructGPT", "OPT", "Cohere"]
+    label_order = ["Best human", "Avg. human", "Cohere-command", "OPT", "Random chance"]
+    models_to_show = ["Cohere-command", "OPT"]
 
     # Uncomment to show all models in paper if all_results.json downloaded from ...
-    models_to_show = ["OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5", "Cohere-command"]
-    label_order = ["Best human", "Avg. human", "Cohere-command", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
-    # models_to_show = ["text-<engine>-001", "Cohere-command", "GPT-3"]
-    # label_order = ["Best human", "Avg. human", "text-<engine>-001", "Cohere-command", "GPT-3"]
-    # plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
+    # label_order = ["Best human", "Avg. human", "Cohere-command", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
+    # models_to_show = ["OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5", "Cohere-command"]
+
+    plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
 
     # Uncomment to show all models in an accuracy v. k graph (if all_results.json downloaded from ...)
     groups_per_model = ["Example IT", "Example IT", "Example IT", "Example IT", "Example IT",
                         "Base", "Base", "Base", "Base", "Base", "Benchmark IT", "Dialogue FT", "Benchmark IT",
                         "Example IT"]
-    models_to_show = ["GPT-4", "ChatGPT", "text-davinci-003", "text-davinci-002", "text-<engine>-001", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
-                      "Cohere-command"]
-    label_order = ["GPT-4", "text-davinci-002", "text-davinci-003", "text-<engine>-001", "ChatGPT", "Cohere-command", "GPT-3", "Cohere", "OPT", "Flan-T5",
-                   "BLOOM", "EleutherAI", "BlenderBot", "T0", "Random chance"]
+    # models_to_show = ["GPT-4", "ChatGPT", "text-davinci-003", "text-davinci-002", "text-<engine>-001", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
+    #                   "Cohere-command"]
+    # label_order = ["GPT-4", "text-davinci-002", "text-davinci-003", "text-<engine>-001", "ChatGPT", "Cohere-command", "GPT-3", "Cohere", "OPT", "Flan-T5",
+    #                "BLOOM", "EleutherAI", "BlenderBot", "T0", "Random chance"]
     # plot_few_shot(file, models_to_show=models_to_show, label_order=label_order, groups_per_model=groups_per_model)
     # plot_all_lines(file)
     # type_label_analysis(project_folder,
@@ -3289,7 +3277,7 @@ if __name__ == "__main__":
     # write_to_csv(file)
     # print_latex_table(file)
     # save_timestamp_per_api_call()
-    save_compute_emission_per_experiment()
+    # save_compute_emission_per_experiment()
 
     # generate_chatgpt_eval_files()
     # compare_BIG_bench_task()

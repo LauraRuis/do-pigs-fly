@@ -93,11 +93,11 @@ run `experiment_run_scripts/run_contrastive.sh`. Note that this only runs the ex
 To change this like in the paper, adjust the code in `_wrap_in_template()` in `prompting.py`.
 
 ## Visualise results
-For this section, unzip `results.zip`. It does not contain all the results in the paper, because those
-are too large for GitHub, but it contains the results for InstructGPT and Cohere's models, and for OPT-175B.
+For this section, unzip `results_preview.zip`. It does not contain all the results in the paper, because those
+are too large for GitHub, but it contains the results for gpt-4, cohere-command-52b, and OPT-175b.
 If you want all results from the paper, find them <a href="https://drive.google.com/file/d/1hWcuUpcNef0OGnbS_1PJmFR-LCoG2_oa/view?usp=sharing" target="_blank">**here on drive**</a>.
-To use that file, download it and place `all_results.json` in the folder `error_analysis`.
-First unzip `results.zip`, then run:
+To use that file, download it and place `all_results.json` in the folder `error_analysis_preview`.
+First unzip `results_preview.zip`, then run:
 
 ```bash
 >> python -m src.error_analysis
@@ -105,6 +105,8 @@ First unzip `results.zip`, then run:
 
 The individual results get added to a big file and the scale graphs are plot, the k-shot plots are made,
 and the type label analysis is done. **Note that this can take several minutes.**
+
+NB: the parsing of model ids in `error_analysis.py` is a clusterfuck, so sorry in advance if that goes wrong.
 
 ### Plot scale graph
 After running the error analysis, the zero-shot scaling plot is in `error_analysis/accuracy_v_size_k=0.png`
