@@ -1,5 +1,5 @@
-# Large language models are not zero-shot communicators
-This repository concerns the <a href="https://arxiv.org/abs/2210.14986" target="_blank">paper</a> "Large language models are not zero-shot communicators". It contains the code for running evaluations with OpenAI's and Cohere's API's.
+# The Goldilocks of Pragmatic Understanding: Fine-tuning Strategy Matter for Implicature Resolution by LLMs
+This repository concerns the <a href="https://arxiv.org/abs/2210.14986" target="_blank">paper</a> "The Goldilocks of Pragmatic Understanding: Fine-tuning Strategy Matter for Implicature Resolution by LLMs". It contains the code for running evaluations with OpenAI's and Cohere's API's.
 For evaluations on public HuggingFace models have a look at <a href="https://github.com/LauraRuis/lm-evaluation-harness" target="_blank">this repository</a>.
 
 <a href="https://huggingface.co/datasets/UCL-DARK/ludwig" target="_blank">**HF Dataset**</a>
@@ -60,13 +60,28 @@ Check installation:
 The main experiments on OpenAI's models and Cohere's models are the zero-shot and k-shot experiments.
 The models used for OpenAI are:
 - GPT-3 (ada, babbage, curie, and davinci)
-- InstructGPT (text-ada-001, text-babbage-001, text-curie-001, text-davinci-001)
-- InstructGPT unknown size (text-davinci-002)
+- text-ada-001, text-babbage-001, text-curie-001, text-davinci-001
+- text-davinci-002, text-davinci-003
+- gpt-3.5-turbo (ChatGPT)
+- GPT-4
 
 And for Cohere:
 - small, medium, large, XL
+- Command small, medium, large, XL
 
-Find the commands to run the OpenAI evaluations in `experiment_run_scripts/run_all_openai.sh` and Cohere in `experiment_run_scripts/run_all_cohere.sh`.
+Find the commands to run evaluations in 
+- All OpenAI models except ChatGPT and GPT-4: `experiment_run_scripts/run_all_openai.sh`
+- All Cohere models except Cohere-comman: `experiment_run_scripts/run_all_cohere.sh`
+- ChatGPT and GPT-4: `experiment_run_scripts/run_all_openai_completion.sh`
+- Cohere-command: `experiment_run_scripts/run_all_cohere_command.sh`
+
+### Chain-of-Thought experiments
+We ran chain-of-thought (CoT) experiments on the best instructable models (`GPT-4`, `text-davinci-001`, `ChatGPT`, and `Cohere-command-XL`).
+CoT prompting also requires the model to be used with completion, because it should be able to write a chain of thought before
+outputting the final answer. Hence, we allow the models to generate tokens instead of using forced likelihood ranking.
+To run these experiments, run `experiment_run_scripts/run_all_cot.sh`. The prompt templates are in `data/prompt_templates_cot.txt`.
+Note that this also runs the CoT experiments on the models that were not instruction-tuned at the example level.
+This was done if it would improve their performance as well, but it did not (results in Appendix I.7).
 
 ### Extra prompt templates
 For the OpenAI models, we additionally used 3 prompt templates taken from the Sparrow paper. To run these experiments
@@ -76,17 +91,6 @@ run `experiment_run_scripts/run_extra_prompts_openai.sh`.
 In the appendix, we did an experiment with a contrastive setup instead of a ranking setup. To run these experiments
 run `experiment_run_scripts/run_contrastive.sh`. Note that this only runs the experiment for multiple choice options "A" and "B".
 To change this like in the paper, adjust the code in `_wrap_in_template()` in `prompting.py`.
-
-### ChatGPT
-ChatGPT is only available with the completion endpoint in the OpenAI API, so we had to adjust the prompt templates to guide the model more
-strongly towards outputting 'yes' or 'no'. To run these experiments, run `experiment_run_scripts/run_all_chatgpt.sh`.
-The different templates are in `data/prompt_templates_completion.txt`.
-
-### CoT
-We ran chain-of-thought (CoT) experiments on the best instructable models (`text-davinci-001`, `ChatGPT`, and `Cohere-command-XL`).
-CoT prompting also requires the model to be used with completion, because it should be able to write a chain of thought before
-outputting the final answer. Hence, we allow the models to generate tokens instead of using forced likelihood ranking.
-To run these experiments, run `experiment_run_scripts/run_all_cot.sh`. The prompt templtes are in `data/prompt_templates_cot.txt`.
 
 ## Visualise results
 For this section, unzip `results.zip`. It does not contain all the results in the paper, because those
@@ -111,7 +115,6 @@ to show on the plot.
 After running the error analysis, the k-shot plots like the ones in the paper are
 - `error_analysis/accuracy_v_k.png`
 - `error_analysis/accuracy_v_k_subplots.png`
-
 
 ### Type label analysis
 After running the error analysis as above, the type labels accuracies are printed

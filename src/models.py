@@ -218,11 +218,9 @@ class OpenAIModel(Model):
                                 {"role": "user", "content": _input_text},
                             ]
                         )
-                        completion_tokens = prediction["usage"]["completion_tokens"]
                         completion = prediction["choices"][0]["message"]["content"]
                     except:
                         completion = ""
-                    # time.sleep(0.1)  # TODO: remove this when rate limit is fixed
                 else:
                     try:
                         prediction = openai.Completion.create(
@@ -233,30 +231,11 @@ class OpenAIModel(Model):
                             logprobs=1,
                             echo=True,
                         )
-                        last_token = prediction.choices[0].logprobs.tokens[-1]
                         completion_tokens = prediction["usage"]["completion_tokens"]
                         completion = prediction["choices"][0]["text"].split()
                         completion = " ".join(completion[-completion_tokens:])
                     except:
                         completion = ""
-                # assert prediction.choices[0].logprobs.tokens[-1] in [
-                #     "yes",
-                #     "no",
-                #     " no",
-                #     " yes",
-                #     "one",
-                #     "two",
-                #     " one",
-                #     " two",
-                #     "1",
-                #     "2",
-                #     " 1",
-                #     " 2",
-                #     "A",
-                #     "B",
-                #     " A",
-                #     " B",
-                # ], "Last token is not one of binary implicature options."
                 completions.append(completion)
         else:
             raise ValueError("Wrong type of input to _get_lm_score().")
