@@ -8,7 +8,10 @@ For evaluations on public HuggingFace models have a look at <a href="https://git
 
 <a href="https://lauraruis.github.io/2022/09/29/comm.html" target="_blank">**Blogpost**</a>
 
-<a href="https://drive.google.com/file/d/1hWcuUpcNef0OGnbS_1PJmFR-LCoG2_oa/view?usp=sharing" target="_blank">**All results in a big file**</a>
+<a href="https://drive.google.com/file/d/1IfFQe2GYJduMTWz7tdf081ZzvT7CCUAc/view?usp=sharing" target="_blank">**All results in a big file**</a>
+
+<a href="https://drive.google.com/file/d/1e7PHYp-DsvoPuUEMVfy8WGSZ-ZDKtUAY/view?usp=sharing" target="_blank">**Results per model and compute used per model**</a>
+
 
 **Research question**: To what extent do large language models understand conversational implicature?
 
@@ -44,6 +47,14 @@ Other requirements:
 >> python -m pip install -r requirements
 ```
 
+For mac with `arm64` the following requirements for `sentencepiece` also need to be installed :
+
+```bash
+brew install cmake
+brew install gperftools
+brew install pkg-config
+```
+
 Note that to run any evaluations you need to have OpenAI and Cohere's API keys. Add these keys
 to the two files in the folder `static` called `cohere_api_key.txt` and `openai_api_key.txt`. The former just needs
 a single line with the key, the latter has the organization key on the first line and the API key on the second.
@@ -53,6 +64,30 @@ Check installation:
 ```bash
 >> pytest tests/.
 ```
+
+To run an end-to-end code check:
+
+Note that you need an OpenAI API key for this, which can be set in `static/openai_api_key.txt`. The costs
+of running the test is very low, since we use the `ada` engine which is the cheapest, and we only evaluate 5 examples (5 x 6 x 2 = 60 API queries).
+This would cost worst case if each query has 1000 tokens (which it doesn't nearly have) 60 x 0.0016 = 0.1 dollars.
+In any case, alternatively one can run with a new OpenAI account with the free provided credits with less risk.
+
+```bash
+>> chmod a+x test_code_runs.sh
+>> ./test_code_runs.sh
+```
+
+Expected output should be:
+
+```bash
+This script should not take more than a minute to run.
+Note that an OpenAI API key and organization ID needs to be set to run this in static/openai_api_key.txt. The costs are neglible because we use the cheapest model for only 5 test examples.
+PASSED
+```
+
+Note that to run any evaluations on OpenAI's or Cohere's models you need to have API keys. Add these keys
+to the two files in the folder `static` called `cohere_api_key.txt` and `openai_api_key.txt`. The former just needs
+a single line with the key, the latter has the organization key on the first line and the API key on the second.
 
 ## Run evaluations
 
@@ -71,7 +106,7 @@ And for Cohere:
 
 Find the commands to run evaluations in 
 - All OpenAI models except ChatGPT and GPT-4: `experiment_run_scripts/run_all_openai.sh`
-- All Cohere models except Cohere-comman: `experiment_run_scripts/run_all_cohere.sh`
+- All Cohere models except Cohere-command: `experiment_run_scripts/run_all_cohere.sh`
 - ChatGPT and GPT-4: `experiment_run_scripts/run_all_openai_completion.sh`
 - Cohere-command: `experiment_run_scripts/run_all_cohere_command.sh`
 
@@ -95,7 +130,7 @@ To change this like in the paper, adjust the code in `_wrap_in_template()` in `p
 ## Visualise results
 For this section, unzip `results_preview.zip`. It does not contain all the results in the paper, because those
 are too large for GitHub, but it contains the results for gpt-4, cohere-command-52b, and OPT-175b.
-If you want all results from the paper, find them <a href="https://drive.google.com/file/d/1hWcuUpcNef0OGnbS_1PJmFR-LCoG2_oa/view?usp=sharing" target="_blank">**here on drive**</a>.
+If you want all results from the paper, find them <a href="https://drive.google.com/file/d/1IfFQe2GYJduMTWz7tdf081ZzvT7CCUAc/view?usp=sharing" target="_blank">**here on drive**</a>.
 To use that file, download it and place `all_results.json` in the folder `error_analysis_preview`.
 First unzip `results_preview.zip`, then run:
 
