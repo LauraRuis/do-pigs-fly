@@ -1037,7 +1037,6 @@ def plot_scale_graph(results_path, models_to_show, label_order, normalize_metric
         human_avg, human_best = HUMAN_AVG_PERFORMANCE, HUMAN_BEST_PERFORMANCE
     results_folder = results_path.split("/")[0]
     k_shot = [int(k) for k in list(results.keys())]
-    # k_shot = [5]  # TODO: change once all results in
     lines = {}
     model_classes = []
     colors_counter = -1
@@ -1677,6 +1676,8 @@ def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
     x = np.arange(len(k_shot))
     all_rects = {}
     for i, group in enumerate(ordered_groups):
+        if group not in groups_per_model:
+            continue
         color = group_colors[group]
         offset = width * multiplier
         # x = np.array(lines[group]["mean_line"]["x"])
@@ -1700,11 +1701,12 @@ def plot_few_shot(results_path, models_to_show, label_order, groups_per_model,
         legend_d["Random chance"]["label"] = f"Random chance"
     ordered_legend_lines = [legend_d[line_n]["line"] for line_n in label_order]
     ordered_legend_labels = [legend_d[line_n]["label"] for line_n in label_order]
-    ordered_rects = [all_rects[label] for label in ordered_groups]
+    ordered_rects = [all_rects[label] for label in ordered_groups if label in groups_per_model]
     ordered_legend_lines = ordered_legend_lines
     ordered_legend_labels = ordered_legend_labels
     legend_one = plt.legend(ordered_legend_lines, ordered_legend_labels, fontsize=35, loc='center left',
                             bbox_to_anchor=(1, 0.4), ncol=1)
+    ordered_groups_filtered = [group for group in ordered_groups if group in groups_per_model]
     ax = plt.gca().add_artist(legend_one)
     plt.legend(ordered_rects, ordered_groups, fontsize=36, loc="upper center", ncol=4)
     plt.xticks(np.arange(len(k_shot)), [k_to_str[k] for k in k_shot], fontsize=30)
@@ -1817,9 +1819,10 @@ def extract_counter(results, k_shot):
                 template_scores_per_model_per_k[model][k][template].append(
                     accuracy_per_template[template]
                 )
-                example_results[model][k][template] = model_results["example_results"][
-                    template
-                ]
+                if "example_results" in model_results:
+                    example_results[model][k][template] = model_results["example_results"][
+                        template
+                    ]
         if k == 0:
             for model in models_sorted_by_size:
                 models_sorted_by_size[model] = [
@@ -3216,6 +3219,133 @@ def api_variance(folder: str):
     print(f"Variance overall is {(variance_coherent_overall/num_templates) + (variance_incoherent_overall / num_templates) / 2}")
 
 
+def human_error_analysis():
+    file = "data/type_labels.csv"
+    with open(file, "r") as infile:
+        file_reader = csv.reader(infile)
+        keys = []
+        examples_with_type_labels = {}
+        for i, row in enumerate(file_reader):
+            if i == 0:
+                keys.extend(row)
+            else:
+                example = {
+                    "utterance": row[0],
+                    "response": row[1],
+                    "implicature": row[2].strip(".").lower(),
+                    "label": row[3],
+                    "factual": row[4],
+                }
+                examples_with_type_labels[row[0].replace("\r", "")] = example
+    human_eval_files = [
+        "data/human_eval/human_eval - 1-150.csv",
+        "data/human_eval/human_eval - 151-300.csv",
+        "data/human_eval/human_eval - 301-450.csv",
+        "data/human_eval/human_eval - 451-600.csv",
+    ]
+    human_examples, human_counts = get_all_human_performance(human_eval_files)
+
+    examples_with_type_labels_id = {}
+    found_labels = 0
+    label_dist = Counter()
+
+    for ex_id, example in enumerate(human_examples):
+        key = example["utterance"].replace("\r", "")
+        if key in examples_with_type_labels:
+            example_labeled = examples_with_type_labels[
+                example["utterance"].replace("\r", "")
+            ]
+            found_labels += 1
+        else:
+            example_labeled = {"label": "Other"}
+            example_labeled.update(example)
+        label_dist[example_labeled["label"]] += 1
+        label_dist["Mean"] += 1
+        examples_with_type_labels_id[ex_id] = example_labeled
+
+    all_correct = 0
+    all_correct_labels = Counter()
+    for i, (count, ex) in enumerate(zip(human_counts, human_examples)):
+        type_label = examples_with_type_labels_id[i]["label"]
+        if count == 4 or count == 5 or count == 3:
+            print(ex)
+            all_correct += 1
+            all_correct_labels[type_label] += 1
+    print(all_correct)
+    print(all_correct_labels)
+
+    return
+
+
+def analysis_of_cot(project_folder, k_shot=[0]):
+    file = "data/type_labels.csv"
+    with open(file, "r") as infile:
+        file_reader = csv.reader(infile)
+        keys = []
+        examples_with_type_labels = {}
+        for i, row in enumerate(file_reader):
+            if i == 0:
+                keys.extend(row)
+            else:
+                example = {
+                    "utterance": row[0],
+                    "response": row[1],
+                    "implicature": row[2].strip(".").lower(),
+                    "label": row[3],
+                    "factual": row[4],
+                }
+                examples_with_type_labels[row[0].replace("\r", "")] = example
+    cot_results_file = "Results per model and compute/CoT/CoT-openai-gpt-4/5-shot/results.json"
+    with open(cot_results_file, "r") as infile:
+        completion_cot_results = json.load(infile)
+    results_file = "Results per model and compute/gpt-4/5-shot/results.json"
+    with open(results_file, "r") as infile:
+        completion_results = json.load(infile)
+
+    human_eval_files = [
+        "data/human_eval/human_eval - 1-150.csv",
+        "data/human_eval/human_eval - 151-300.csv",
+        "data/human_eval/human_eval - 301-450.csv",
+        "data/human_eval/human_eval - 451-600.csv",
+    ]
+    human_examples, human_counts = get_all_human_performance(human_eval_files)
+
+    # Get the example IDs for the labeled examples
+    examples_with_type_labels_id = {}
+    found_labels = 0
+    label_dist = Counter()
+
+    for ex_id, example in enumerate(human_examples):
+        key = example["utterance"].replace("\r", "")
+        if key in examples_with_type_labels:
+            example_labeled = examples_with_type_labels[
+                example["utterance"].replace("\r", "")
+            ]
+            found_labels += 1
+        else:
+            example_labeled = {"label": "Other"}
+            example_labeled.update(example)
+        label_dist[example_labeled["label"]] += 1
+        label_dist["Mean"] += 1
+        examples_with_type_labels_id[ex_id] = example_labeled
+
+    count_better = 0
+    for id, example_with_label in examples_with_type_labels_id.items():
+        correct = completion_results["predictions"][int(id)]["openai-gpt4"]["average_implicature_accuracy"]
+        correct_cot = completion_cot_results["predictions"][int(id)]["openai-gpt4"]["average_implicature_accuracy"]
+        if correct <= 0 and correct_cot >= 100:
+            print(example_with_label)
+            count_better += 1
+            print(f"Normal correct: {correct}")
+            print(f"CoT correct: {correct_cot}")
+            completion = completion_results["predictions"][int(id)]["openai-gpt4"]["prompt_template_0"]["implicature_result"]["correct_score"]
+            cot_completion = completion_cot_results["predictions"][int(id)]["openai-gpt4"]["prompt_template_0"]["implicature_result"]["correct_score"]
+            print(f"Normal completion: {completion}\n\n")
+            print(f"CoT completion: {cot_completion}\n\n")
+            print(f"Human count: {human_counts[int(id)]}")
+    print(f"Total better: {count_better}")
+
+
 if __name__ == "__main__":
     project_folder = "error_analysis_preview"
     results_folder = "results_preview"
@@ -3227,11 +3357,14 @@ if __name__ == "__main__":
         os.mkdir(project_folder)
     # NB: before this code will run, unzip results_preview.zip
 
+    # The below code block can be uncommented to add results from single model files to the large file with all results
     # Gather all results per models and k and add it to one big file.
     models = [
+        "cohere-commandmedium",
         "cohere-commandxl",
-        "openai-gpt4"
+        "openai-gpt4",
     ]
+    # Add the results obtained with this repo (from OpenAI and Cohere) to all_results.json
     k = [0, 1, 5, 10, 15, 30]
     for model in models:
         for k_shot in k:
@@ -3241,52 +3374,42 @@ if __name__ == "__main__":
     # Add the results from the LM-eval-harness to all_results.json
     lm_eval_folders = [f"{results_folder}/opt evals"]
     for lm_eval_folder in lm_eval_folders:
-        convert_lm_eval_results(lm_eval_folder, "error_analysis")
+        convert_lm_eval_results(lm_eval_folder, project_folder)
 
     label_order = ["Best human", "Avg. human", "Cohere-command", "OPT", "Random chance"]
     models_to_show = ["Cohere-command", "OPT"]
 
     # Uncomment to show all models in paper if all_results.json downloaded from ...
-    # label_order = ["Best human", "Avg. human", "Cohere-command", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere", "GPT-3", "T0", "BlenderBot", "Random chance"]
-    # models_to_show = ["OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5", "Cohere-command"]
+    # label_order = ["Best human", "Avg. human", "Cohere-command", "Flan-T5", "OPT", "EleutherAI", "BLOOM", "Cohere",
+    #                "GPT-3", "T0", "BlenderBot", "Random chance"]
+    # models_to_show = ["OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
+    #                   "Cohere-command"]
 
     plot_scale_graph(file, models_to_show=models_to_show, label_order=label_order)
 
     # Uncomment to show all models in an accuracy v. k graph (if all_results.json downloaded from ...)
-    groups_per_model = ["Example IT", "Example IT", "Example IT", "Example IT", "Example IT",
-                        "Base", "Base", "Base", "Base", "Base", "Benchmark IT", "Dialogue FT", "Benchmark IT",
-                        "Example IT"]
-    # models_to_show = ["GPT-4", "ChatGPT", "text-davinci-003", "text-davinci-002", "text-<engine>-001", "OPT", "BLOOM", "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
+    # groups_per_model = ["Example IT", "Example IT", "Example IT", "Example IT", "Example IT",
+    #                     "Base", "Base", "Base", "Base", "Base", "Benchmark IT", "Dialogue FT", "Benchmark IT",
+    #                     "Example IT"]
+    # models_to_show = ["GPT-4", "ChatGPT", "text-davinci-003", "text-davinci-002", "text-<engine>-001", "OPT", "BLOOM",
+    #                   "EleutherAI", "Cohere", "GPT-3", "T0", "BlenderBot", "Flan-T5",
     #                   "Cohere-command"]
-    # label_order = ["GPT-4", "text-davinci-002", "text-davinci-003", "text-<engine>-001", "ChatGPT", "Cohere-command", "GPT-3", "Cohere", "OPT", "Flan-T5",
+    # label_order = ["GPT-4", "text-davinci-002", "text-davinci-003", "text-<engine>-001", "ChatGPT", "Cohere-command",
+    #                "GPT-3", "Cohere", "OPT", "Flan-T5",
     #                "BLOOM", "EleutherAI", "BlenderBot", "T0", "Random chance"]
-    # plot_few_shot(file, models_to_show=models_to_show, label_order=label_order, groups_per_model=groups_per_model)
-    # plot_all_lines(file)
-    # type_label_analysis(project_folder,
-    #                     models_to_show=["Cohere", "Cohere-command",
-    #                                     "OPT", "BLOOM", "EleutherAI", "GPT-3", "T0", "BlenderBot", "Flan-T5",
-    #                                     "text-<engine>-001", "text-davinci-002", "text-davinci-003",
-    #                                     "ChatGPT", "GPT-4"])
-    # type_label_analysis(project_folder,
-    #                     models_to_show=[
-    #                                     "Cohere-command",
-    #                                     "text-<engine>-001", "text-davinci-002", "text-davinci-003",
-    #                                     "ChatGPT", "GPT-4"], k_shot=[0])
-    # make_type_label_plot(project_folder)
-    # api_variance(folder="results/API-variance-openai")
-    # write_to_csv(file)
-    # print_latex_table(file)
-    # save_timestamp_per_api_call()
-    # save_compute_emission_per_experiment()
 
-    # generate_chatgpt_eval_files()
-    # compare_BIG_bench_task()
+    groups_per_model = ["Example IT", "Base"]
+    label_order_fewshot = ["Cohere-command", "OPT", "Random chance"]
+    models_to_show_fewshot = ["Cohere-command", "OPT"]
+    plot_few_shot(file, models_to_show=models_to_show_fewshot, label_order=label_order_fewshot,
+                  groups_per_model=groups_per_model)
 
-    # eval_chatgpt_files(folder="data/chatGPT/no_template_no_shuffle_zero_shot_answered", shuffled=False, templated=False)
-    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
-    # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_zero_shot_answered", shuffled=True, templated=False)
-    # eval_chatgpt_files(folder="data/chatGPT/template_shuffle_one_zero_shot_answered", shuffled=True, templated=True)
-    # eval_chatgpt_files(folder="data/chatGPT/no_template_no_shuffle_five_shot_answered", shuffled=False, templated=False)
-    # eval_chatgpt_files(folder="data/chatGPT/no_template_shuffle_one_five_shot_answered", shuffled=True, templated=False)
-    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_zero_shot_answered", shuffled=False, templated=True)
-    # eval_chatgpt_files(folder="data/chatGPT/template_no_shuffle_five_shot_answered", shuffled=False, templated=True)
+    type_label_analysis(project_folder,
+                        models_to_show=["Cohere-command",
+                                        "GPT-4"], k_shot=[0])
+    make_type_label_plot(project_folder)
+    compare_BIG_bench_task()
+
+    # Some extra analyses done based on NeurIPS 2023 reviews
+    human_error_analysis()
+    analysis_of_cot(project_folder="error_analysis_cot")
