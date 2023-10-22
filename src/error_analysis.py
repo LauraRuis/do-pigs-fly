@@ -3017,9 +3017,9 @@ def make_type_label_plot(project_folder):
     model_names = ["text-davinci-001-?", "text-davinci-002-?", "text-davinci-003-?",
                      "ChatGPT-?", "GPT-4-?", "Cohere-command-52b"]
     sizes = ["unknown", "unknown", "unknown", "unknown", "unknown", "52b"]
-    models_to_add = ["GPT-3", "GPT-4", "Cohere-command"]
-    model_names = ["GPT-3-175b", "GPT-4-?", "Cohere-command-52b"]
-    sizes = ["175b", "unknown", "52b"]
+    models_to_add = ["GPT-4", "Cohere-command"]
+    model_names = ["GPT-4-?", "Cohere-command-52b"]
+    sizes = ["unknown", "52b"]
     k_to_show = ["0", "5", "0"]
     plots = ["0-shot", "5-shot", "5-shot CoT"]
     k_to_show = ["0", "5"]
@@ -3072,7 +3072,7 @@ def make_type_label_plot(project_folder):
         ax.set_ylim(0, 100)
 
         plt.tight_layout()
-        plt.savefig(f"error_analysis/type_labels_barchart_{plot}.jpg")
+        plt.savefig(f"{project_folder}/type_labels_barchart_{plot}.jpg")
 
     # Absolute plot
     linewidth = 3
@@ -3409,12 +3409,8 @@ if __name__ == "__main__":
 
     type_label_analysis(project_folder,
                         models_to_show=["Cohere-command",
-                                        "GPT-4"], k_shot=[0])
+                                        "GPT-4"], k_shot=[0, 5])
     make_type_label_plot(project_folder)
-    compare_BIG_bench_task()
 
     # Some extra analyses done based on NeurIPS 2023 reviews
     human_error_analysis()
-    if not os.path.exists("error_analysis_cot"):
-        raise ValueError("Unzip error_analysis_cot.zip and re-run this code.")
-    analysis_of_cot(project_folder="error_analysis_cot")
