@@ -2944,10 +2944,10 @@ def save_timestamp_per_api_call():
 
 def make_type_label_plot(project_folder):
 
-    with open("error_analysis/all_type_label_results.json", "r") as infile:
+    with open(f"{project_folder}/all_type_label_results.json", "r") as infile:
         all_results = json.load(infile)
 
-    with open("error_analysis_cot/all_type_label_results.json", "r") as infile:
+    with open(f"{project_folder}/all_type_label_results.json", "r") as infile:
         all_results_cot = json.load(infile)
 
     base_models = ["Cohere", "BLOOM", "OPT", "GPT-3", "EleutherAI"]
@@ -3352,6 +3352,9 @@ if __name__ == "__main__":
     print(f"Running error analysis on {project_folder}, "
           "change to another folder if all_results.json is located elsewhere.")
     file = f"{project_folder}/all_results.json"
+
+    if not os.path.exists("results_preview"):
+        raise ValueError("Unzip results_preview.zip and re-run this code.")
 
     if not os.path.exists(project_folder):
         os.mkdir(project_folder)

@@ -10,3 +10,4 @@ matplotlib
 transformers
 pytest
 jinja2
+editdistance
