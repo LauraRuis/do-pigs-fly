@@ -3415,4 +3415,6 @@ if __name__ == "__main__":
 
     # Some extra analyses done based on NeurIPS 2023 reviews
     human_error_analysis()
+    if not os.path.exists("error_analysis_cot"):
+        raise ValueError("Unzip error_analysis_cot.zip and re-run this code.")
     analysis_of_cot(project_folder="error_analysis_cot")
